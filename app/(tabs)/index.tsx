@@ -97,7 +97,7 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: '#F8F9FA' },
-    container: { padding: 25 },
+    container: { padding: 25, paddingTop: 2 },
     welcomeText: { fontSize: 28, fontWeight: '800', color: '#212529', marginTop: 10 },
     subtitle: { fontSize: 16, color: '#6C757D', marginBottom: 30 },
     mainCard: {
@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     cardTitle: { fontSize: 20, fontWeight: '700', color: '#212529' },
     cardDesc: { fontSize: 14, color: '#6C757D' },
     arrow: { position: 'absolute', right: 20 },
-    fab: { position: 'absolute', bottom: 30, right: 30, width: 70, height: 70, borderRadius: 35, backgroundColor: '#007BFF', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#007BFF', shadowOpacity: 0.4, shadowRadius: 10 },
+    fab: { position: 'absolute', bottom: 60, right: 25, width: 65, height: 65, borderRadius: 35, backgroundColor: '#007BFF', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#007BFF', shadowOpacity: 0.4, shadowRadius: 10 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     authButton: { marginTop: 20, backgroundColor: '#007BFF', padding: 15, borderRadius: 10 },
     authButtonText: { color: '#FFF', fontWeight: 'bold' }

@@ -6,35 +6,40 @@ import {
     FlatList, 
     SafeAreaView, 
     TextInput, 
-    TouchableOpacity 
+    TouchableOpacity,
+    Platform 
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+
+// Nos aseguramos de que estas rutas sean exactas a tu estructura actual
 import { getAllCredentials, Credential } from '../storage/credentials';
-import CredentialCard from './components/CredentialCard';
+import CredentialCard from './components/CredentialCard'; 
 
 export default function ListScreen() {
     const router = useRouter();
-    // Obtenemos el filtro (fav, work o all) desde la URL
     const { filter } = useLocalSearchParams<{ filter: string }>();
     
     const [allCredentials, setAllCredentials] = useState<Credential[]>([]);
     const [filteredData, setFilteredData] = useState<Credential[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
-    // 1. Cargar y filtrar los datos
     const loadData = async () => {
-        const data = await getAllCredentials();
-        let result = data;
+        try {
+            const data = await getAllCredentials();
+            let result = data;
 
-        if (filter === 'fav') {
-            result = data.filter(c => c.category === 'fav');
-        } else if (filter === 'work') {
-            result = data.filter(c => c.category === 'work');
+            if (filter === 'fav') {
+                result = data.filter((c: Credential) => c.category === 'fav');
+            } else if (filter === 'work') {
+                result = data.filter((c: Credential) => c.category === 'work');
+            }
+
+            setAllCredentials(result);
+            setFilteredData(result);
+        } catch (error) {
+            console.error("Error al cargar datos en la lista:", error);
         }
-
-        setAllCredentials(result);
-        setFilteredData(result);
     };
 
     useFocusEffect(
@@ -43,7 +48,6 @@ export default function ListScreen() {
         }, [filter])
     );
 
-    // 2. Lógica del buscador
     const handleSearch = (text: string) => {
         setSearchQuery(text);
         if (text.trim() === '') {
@@ -57,7 +61,6 @@ export default function ListScreen() {
         }
     };
 
-    // 3. Título dinámico según el filtro
     const getTitle = () => {
         if (filter === 'fav') return "Favoritos";
         if (filter === 'work') return "Trabajo";
@@ -66,17 +69,21 @@ export default function ListScreen() {
 
     return (
         <SafeAreaView style={styles.safeArea}>
-            <Stack.Screen options={{ title: getTitle() }} />
+            <Stack.Screen options={{ 
+                title: getTitle(),
+                headerShown: true 
+            }} />
             
-            <View style={styles.container}>
+            <View style={styles.mainContainer}>
                 {/* BUSCADOR */}
                 <View style={styles.searchBar}>
                     <Ionicons name="search" size={20} color="#ADB5BD" style={{ marginRight: 10 }} />
                     <TextInput 
-                        placeholder="Buscar en esta categoría..." 
+                        placeholder="Buscar cuenta..." 
                         style={styles.searchInput}
                         value={searchQuery}
                         onChangeText={handleSearch}
+                        autoCapitalize="none"
                     />
                     {searchQuery.length > 0 && (
                         <TouchableOpacity onPress={() => handleSearch('')}>
@@ -99,42 +106,77 @@ export default function ListScreen() {
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
                             <Ionicons name="document-text-outline" size={60} color="#DEE2E6" />
-                            <Text style={styles.emptyText}>No hay cuentas aquí todavía.</Text>
+                            <Text style={styles.emptyText}>No hay cuentas aquí.</Text>
                         </View>
                     }
                 />
             </View>
 
-            {/* BOTÓN FLOTANTE TAMBIÉN AQUÍ PARA UX */}
-            <TouchableOpacity style={styles.fab} onPress={() => router.push('/add')}>
-                <Ionicons name="add" size={30} color="#FFF" />
+            {/* BOTÓN FLOTANTE (+) POSICIÓN FIJA Y SEGURA */}
+            <TouchableOpacity 
+                style={styles.fab} 
+                onPress={() => router.push('/add')}
+            >
+                <Ionicons name="add" size={35} color="#FFF" />
             </TouchableOpacity>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: '#F8F9FA' },
-    container: { flex: 1, paddingHorizontal: 20 },
+    safeArea: { 
+        flex: 1, 
+        backgroundColor: '#F8F9FA' 
+    },
+    mainContainer: { 
+        flex: 1, 
+        paddingHorizontal: 12,
+        paddingTop: Platform.OS === 'android' ? 55 : 65, // Baja el buscador para que no toque el título
+        paddingBottom: Platform.OS === 'android' ? 50 : 40,
+    },
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFF',
         paddingHorizontal: 15,
-        height: 50,
-        borderRadius: 12,
-        marginTop: 15,
-        marginBottom: 20,
+        height: 55,
+        borderRadius: 14,
+        marginBottom: 15,
+        marginHorizontal: 5,
         borderWidth: 1,
         borderColor: '#E9ECEF',
+        elevation: 2,
     },
-    searchInput: { flex: 1, fontSize: 16, color: '#212529' },
-    listContent: { paddingBottom: 100 },
-    emptyState: { alignItems: 'center', marginTop: 100 },
-    emptyText: { color: '#ADB5BD', marginTop: 10, fontSize: 16 },
+    searchInput: { 
+        flex: 1, 
+        fontSize: 16, 
+        color: '#212529' 
+    },
+    listContent: { 
+        paddingBottom: 130 
+    },
+    emptyState: { 
+        alignItems: 'center', 
+        marginTop: 50 
+    },
+    emptyText: { 
+        color: '#ADB5BD', 
+        fontSize: 16 
+    },
     fab: { 
-        position: 'absolute', bottom: 30, right: 30, width: 60, height: 60, 
-        borderRadius: 30, backgroundColor: '#007BFF', justifyContent: 'center', 
-        alignItems: 'center', elevation: 5 
+        position: 'absolute', 
+        bottom: 60, // Subido para evitar el borde inferior del sistema
+        right: 25, 
+        width: 65, 
+        height: 65, 
+        borderRadius: 32.5, 
+        backgroundColor: '#007BFF', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4.65,
     },
 });

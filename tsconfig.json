@@ -2,6 +2,8 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // CLAVE: Esto le dice a TypeScript dónde buscar las rutas absolutas (@/)
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./*"

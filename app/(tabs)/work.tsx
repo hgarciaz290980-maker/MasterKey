@@ -1,0 +1,32 @@
+// app/(main)/work.tsx (Pantalla de la Pestaña "Trabajo")
+
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8F9FA', // Fondo muy claro
+  },
+  text: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#007BFF',
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#6c757d',
+  }
+});
+
+export default function WorkScreen() {
+  return (
+    <View style={styles.container}>
+      <Text style={styles.text}>💼 Cuentas de Trabajo</Text>
+      <Text style={styles.subtitle}>Aquí aparecerán tus contraseñas laborales.</Text>
+    </View>
+  );
+}

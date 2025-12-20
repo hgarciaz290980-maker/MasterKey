@@ -1,17 +1,12 @@
-// app/add.tsx (Versión FINAL y CORREGIDA - Usa createCredential)
-
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, SafeAreaView, ActivityIndicator } from 'react-native'; 
 import { Stack, useRouter } from 'expo-router';
 import InputField from './components/InputField'; 
 import { Ionicons } from '@expo/vector-icons';
-// RUTA CORREGIDA: Importamos createCredential en lugar de addCredential
 import { createCredential, Credential } from '../storage/credentials'; 
-
 
 export default function AddScreen() {
   const router = useRouter();
-
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSaving, setIsSaving] = useState(false); 
 
@@ -22,26 +17,32 @@ export default function AddScreen() {
       recoveryEmail: '',
       websiteUrl: '',
       notes: '',
+      category: 'none', // Valor por defecto
   });
+
+  const generateSecurePassword = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
+    let password = "";
+    for (let i = 0; i < 16; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setFormData({ ...formData, password: password });
+    setIsPasswordVisible(true);
+    Alert.alert("Clave Generada", "Se ha creado una contraseña segura.");
+  };
 
   const handleSave = async () => {
     if (!formData.accountName || !formData.username || !formData.password) {
-        Alert.alert("Error", "Por favor, completa Nombre de la Cuenta, Usuario y Contraseña.");
+        Alert.alert("Error", "Completa los campos obligatorios.");
         return;
     }
-
     setIsSaving(true); 
-
     try {
-        // CORREGIDO: Usamos createCredential
         await createCredential(formData);
-
-        Alert.alert("Éxito", "La credencial se ha guardado de forma segura.");
+        Alert.alert("Éxito", "Guardado correctamente.");
         router.back(); 
-        
     } catch (error) {
-        Alert.alert("Error de Guardado", "No se pudo guardar la credencial. Inténtalo de nuevo.");
-        console.error("Error al guardar:", error);
+        Alert.alert("Error", "No se pudo guardar.");
     } finally {
         setIsSaving(false); 
     }
@@ -49,31 +50,47 @@ export default function AddScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      
-      <Stack.Screen 
-        options={{ 
-          title: "Agregar Nueva Cuenta",
-        }} 
-      />
+      <Stack.Screen options={{ title: "Nueva Credencial" }} />
 
-      <ScrollView 
-        contentContainerStyle={styles.scrollViewContent} 
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        <View style={{ height: 40 }} />
         
-        <View style={{ height: 60 }} /> 
-        
+        {/* SELECTOR DE CATEGORÍA */}
+        <Text style={styles.label}>Categorizar como:</Text>
+        <View style={styles.categoryContainer}>
+            <TouchableOpacity 
+                style={[styles.catButton, formData.category === 'fav' && styles.catActiveFav]}
+                onPress={() => setFormData({...formData, category: 'fav'})}
+            >
+                <Ionicons name="star" size={20} color={formData.category === 'fav' ? "#FFF" : "#FFC107"} />
+                <Text style={[styles.catText, formData.category === 'fav' && styles.textWhite]}>Favorito</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+                style={[styles.catButton, formData.category === 'work' && styles.catActiveWork]}
+                onPress={() => setFormData({...formData, category: 'work'})}
+            >
+                <Ionicons name="briefcase" size={20} color={formData.category === 'work' ? "#FFF" : "#6f42c1"} />
+                <Text style={[styles.catText, formData.category === 'work' && styles.textWhite]}>Trabajo</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+                style={[styles.catButton, formData.category === 'none' && styles.catActiveNone]}
+                onPress={() => setFormData({...formData, category: 'none'})}
+            >
+                <Text style={[styles.catText, formData.category === 'none' && styles.textWhite]}>Ninguna</Text>
+            </TouchableOpacity>
+        </View>
+
         <InputField 
           label="Nombre de la Cuenta"
-          placeholder="Ej: Netflix, Google, Banco Santander"
+          placeholder="Netflix, Gmail..."
           value={formData.accountName}
           onChangeText={(text: string) => setFormData({...formData, accountName: text})}
         />
         
         <InputField 
-          label="Usuario / Número de Cuenta"
-          placeholder="ejemplo@correo.com o miusuario"
-          keyboardType="email-address"
+          label="Usuario"
           autoCapitalize="none"
           value={formData.username}
           onChangeText={(text: string) => setFormData({...formData, username: text})}
@@ -82,111 +99,64 @@ export default function AddScreen() {
         <View style={styles.passwordContainer}>
             <InputField 
                 label="Contraseña"
-                placeholder="Ingresa la contraseña"
                 secureTextEntry={!isPasswordVisible} 
                 value={formData.password}
                 onChangeText={(text: string) => setFormData({...formData, password: text})}
-                inputStyle={styles.passwordInput} 
+                inputStyle={{ paddingRight: 90 }} 
             />
-            <TouchableOpacity 
-                onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-                style={styles.eyeIcon}
-            >
-                <Ionicons 
-                    name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'} 
-                    size={24} 
-                    color="#6C757D" 
-                />
-            </TouchableOpacity>
+            <View style={styles.actionIcons}>
+                <TouchableOpacity onPress={generateSecurePassword} style={{ padding: 8 }}>
+                    <Ionicons name="flash" size={22} color="#FFC107" />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={{ padding: 8 }}>
+                    <Ionicons name={isPasswordVisible ? 'eye-off' : 'eye'} size={22} color="#6C757D" />
+                </TouchableOpacity>
+            </View>
         </View>
 
         <InputField 
-          label="Correo de Recuperación (Opcional)"
-          placeholder="backup@correo.com"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          value={formData.recoveryEmail}
-          onChangeText={(text: string) => setFormData({...formData, recoveryEmail: text})}
-        />
-        
-        <InputField 
-          label="URL del Sitio Web (Opcional)"
-          placeholder="https://www.ejemplo.com"
-          keyboardType="url"
+          label="URL del Sitio"
+          placeholder="ejemplo.com"
           autoCapitalize="none"
           value={formData.websiteUrl}
           onChangeText={(text: string) => setFormData({...formData, websiteUrl: text})}
         />
 
+        {/* --- CAMPO RECUPERADO --- */}
         <InputField 
           label="Nota Personal (Opcional)"
-          placeholder="Información adicional sobre la cuenta"
+          placeholder="Información adicional"
           multiline={true}
           numberOfLines={4}
-          inputStyle={styles.notesInput}
+          inputStyle={{ height: 100, textAlignVertical: 'top' }}
           value={formData.notes}
           onChangeText={(text: string) => setFormData({...formData, notes: text})}
         />
         
-        <TouchableOpacity 
-            style={styles.saveButton} 
-            onPress={handleSave}
-            disabled={isSaving} 
-        >
-            {isSaving ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-            ) : (
-                <Text style={styles.saveButtonText}>Guardar Credencial</Text>
-            )}
+        <TouchableOpacity style={styles.saveButton} onPress={handleSave} disabled={isSaving}>
+            {isSaving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveButtonText}>Guardar</Text>}
         </TouchableOpacity>
-
-        <View style={{ height: 20 }} /> 
-        
       </ScrollView>
-      
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1, 
-    backgroundColor: '#F8F9FA',
+  safeArea: { flex: 1, backgroundColor: '#F8F9FA' },
+  scrollViewContent: { paddingHorizontal: 20 },
+  label: { fontSize: 16, fontWeight: '600', color: '#343A40', marginBottom: 10 },
+  categoryContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  catButton: { 
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', 
+    padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#DEE2E6', flex: 0.32, justifyContent: 'center'
   },
-  scrollViewContent: {
-    paddingHorizontal: 20,
-  },
-  
-  saveButton: {
-    backgroundColor: '#007BFF',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  
-  passwordContainer: {
-    position: 'relative',
-    marginBottom: 20,
-  },
-  passwordInput: {
-    paddingRight: 50, 
-  },
-  eyeIcon: {
-    position: 'absolute',
-    top: 35, 
-    right: 5,
-    padding: 10,
-    zIndex: 10,
-  },
-  notesInput: {
-    height: 100, 
-    textAlignVertical: 'top',
-  }
+  catActiveFav: { backgroundColor: '#FFC107', borderColor: '#FFC107' },
+  catActiveWork: { backgroundColor: '#6f42c1', borderColor: '#6f42c1' },
+  catActiveNone: { backgroundColor: '#6C757D', borderColor: '#6C757D' },
+  catText: { marginLeft: 5, fontSize: 12, fontWeight: 'bold', color: '#495057' },
+  textWhite: { color: '#FFF' },
+  passwordContainer: { position: 'relative', marginBottom: 20 },
+  actionIcons: { position: 'absolute', top: 35, right: 5, flexDirection: 'row' },
+  saveButton: { backgroundColor: '#007BFF', padding: 15, borderRadius: 12, alignItems: 'center', marginTop: 20, marginBottom: 40 },
+  saveButtonText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' }
 });

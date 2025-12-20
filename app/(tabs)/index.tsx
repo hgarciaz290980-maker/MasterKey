@@ -1,273 +1,124 @@
-// app/(tabs)/index.tsx (Versión ESTABLE y FINAL con CredentialCard)
-
-import React, { useState, useCallback, useMemo } from 'react';
-import { 
-    View, 
-    Text, 
-    StyleSheet, 
-    TouchableOpacity, 
-    SafeAreaView, 
-    FlatList, 
-    ActivityIndicator, 
-    Alert, 
-    TextInput,
-    Platform
-} from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar } from 'expo-status-bar'; 
 import * as LocalAuthentication from 'expo-local-authentication';
 
-// Importaciones de archivos locales
-import { loadCredentials, Credential } from '../../storage/credentials'; 
-import CredentialCard from '../components/CredentialCard'; 
-
-export default function HomeScreen() {
+export default function DashboardScreen() {
     const router = useRouter();
-    
-    const [credentials, setCredentials] = useState<Credential[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isAuthenticated, setIsAuthenticated] = useState(false); 
-    const [searchTerm, setSearchTerm] = useState(''); 
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-    // --- LÓGICA DE SEGURIDAD ---
     const authenticate = async () => {
-        if (isAuthenticated) return; 
-        
-        try {
-            const isSupported = await LocalAuthentication.hasHardwareAsync();
-            const enrolled = await LocalAuthentication.isEnrolledAsync();
-
-            if (isSupported && enrolled) {
-                const result = await LocalAuthentication.authenticateAsync({
-                    promptMessage: 'Desbloquea MasterKey para ver tus claves',
-                    cancelLabel: 'Cancelar',
-                    disableDeviceFallback: false,
-                });
-
-                if (result.success) {
-                    setIsAuthenticated(true);
-                    fetchCredentials();
-                } else {
-                    Alert.alert("Acceso Denegado", "Debes autenticarte para entrar.", [
-                        { text: "Reintentar", onPress: authenticate }
-                    ]);
-                }
-            } else {
-                // Si el dispositivo no tiene biometría, dejamos pasar por ahora
-                setIsAuthenticated(true);
-                fetchCredentials();
-            }
-        } catch (error) {
-            console.error("Error de autenticación:", error);
-            setIsAuthenticated(false);
-        }
+        const result = await LocalAuthentication.authenticateAsync({
+            promptMessage: 'Desbloquea MasterKey',
+        });
+        if (result.success) setIsAuthenticated(true);
     };
 
-    // --- CARGA DE DATOS ---
-    const fetchCredentials = async () => {
-        setIsLoading(true);
-        try {
-            const storedCredentials = await loadCredentials();
-            setCredentials(storedCredentials);
-        } catch (error) {
-            console.error("Error cargando datos:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Se ejecuta cada vez que el usuario entra a esta pestaña
     useFocusEffect(
         useCallback(() => {
-            if (!isAuthenticated) {
-                authenticate();
-            } else {
-                fetchCredentials();
-            }
-            return () => {}; 
+            if (!isAuthenticated) authenticate();
         }, [isAuthenticated])
     );
 
-    // --- FILTRADO DE BÚSQUEDA ---
-    const filteredCredentials = useMemo(() => {
-        if (!searchTerm) return credentials;
-        const lowerSearch = searchTerm.toLowerCase();
-        return credentials.filter(cred => 
-            cred.accountName.toLowerCase().includes(lowerSearch) ||
-            cred.username.toLowerCase().includes(lowerSearch)
-        );
-    }, [credentials, searchTerm]);
-
-    // --- RENDERIZADO DE CONTENIDO ---
-    const renderContent = () => {
-        if (!isAuthenticated) {
-            return (
-                <View style={styles.centered}>
-                    <Ionicons name="lock-closed" size={80} color="#007BFF" />
-                    <Text style={styles.statusText}>MasterKey Bloqueado</Text>
-                    <TouchableOpacity style={styles.authButton} onPress={authenticate}>
-                        <Text style={styles.authButtonText}>Desbloquear con Biometría</Text>
-                    </TouchableOpacity>
-                </View>
-            );
-        }
-
-        if (isLoading) {
-            return (
-                <View style={styles.centered}>
-                    <ActivityIndicator size="large" color="#007BFF" />
-                    <Text style={styles.statusText}>Cargando...</Text>
-                </View>
-            );
-        }
-        
+    if (!isAuthenticated) {
         return (
-            <>
-                {/* Barra de Búsqueda */}
-                <View style={styles.searchContainer}>
-                    <Ionicons name="search" size={20} color="#6C757D" style={styles.searchIcon} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Buscar cuenta o usuario..."
-                        placeholderTextColor="#ADB5BD"
-                        value={searchTerm}
-                        onChangeText={setSearchTerm}
-                    />
-                </View>
-
-                {/* Lista de Credenciales */}
-                <FlatList
-                    data={filteredCredentials}
-                    keyExtractor={(item) => item.id}
-                    renderItem={({ item }) => (
-                        <CredentialCard 
-                            credential={item} 
-                            onPress={() => router.push(`/details/${item.id}`)} 
-                        />
-                    )}
-                    style={styles.list}
-                    contentContainerStyle={styles.listContent}
-                    ListEmptyComponent={
-                        <View style={styles.emptyContainer}>
-                            <Ionicons name="shield-outline" size={60} color="#DEE2E6" />
-                            <Text style={styles.emptyText}>
-                                {searchTerm ? 'No se encontraron resultados' : 'No tienes cuentas guardadas aún'}
-                            </Text>
-                        </View>
-                    }
-                />
-            </>
+            <View style={styles.centered}>
+                <Ionicons name="lock-closed" size={80} color="#007BFF" />
+                <TouchableOpacity style={styles.authButton} onPress={authenticate}>
+                    <Text style={styles.authButtonText}>Desbloquear</Text>
+                </TouchableOpacity>
+            </View>
         );
-    };
+    }
 
     return (
         <SafeAreaView style={styles.safeArea}>
-            <StatusBar style="auto" /> 
-            <Stack.Screen options={{ title: "Mis Cuentas" }} />
+            <Stack.Screen options={{ title: "MasterKey" }} />
+            
+            <ScrollView contentContainerStyle={styles.container}>
+                <Text style={styles.welcomeText}>Hola, Hugo</Text>
+                <Text style={styles.subtitle}>¿Qué claves necesitas hoy?</Text>
 
-            <View style={styles.container}>
-                {renderContent()}
-            </View>
-
-            {/* Botón flotante para agregar (FAB) */}
-            {isAuthenticated && (
+                {/* TARJETA 1: FAVORITOS */}
                 <TouchableOpacity 
-                    style={styles.fab} 
-                    onPress={() => router.push('/add')}
+                    style={[styles.mainCard, { backgroundColor: '#FFF9E6', borderColor: '#FFC107' }]}
+                    onPress={() => router.push('/list?filter=fav')}
                 >
-                    <Ionicons name="add" size={32} color="#FFFFFF" />
+                    <View style={[styles.iconCircle, { backgroundColor: '#FFC107' }]}>
+                        <Ionicons name="star" size={30} color="#FFF" />
+                    </View>
+                    <View>
+                        <Text style={styles.cardTitle}>Mis Favoritos</Text>
+                        <Text style={styles.cardDesc}>Cuentas destacadas</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={24} color="#FFC107" style={styles.arrow} />
                 </TouchableOpacity>
-            )}
+
+                {/* TARJETA 2: TRABAJO */}
+                <TouchableOpacity 
+                    style={[styles.mainCard, { backgroundColor: '#F3EFFF', borderColor: '#6f42c1' }]}
+                    onPress={() => router.push('/list?filter=work')}
+                >
+                    <View style={[styles.iconCircle, { backgroundColor: '#6f42c1' }]}>
+                        <Ionicons name="briefcase" size={30} color="#FFF" />
+                    </View>
+                    <View>
+                        <Text style={styles.cardTitle}>Trabajo</Text>
+                        <Text style={styles.cardDesc}>Herramientas laborales</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={24} color="#6f42c1" style={styles.arrow} />
+                </TouchableOpacity>
+
+                {/* TARJETA 3: TODAS */}
+                <TouchableOpacity 
+                    style={[styles.mainCard, { backgroundColor: '#E6F0FF', borderColor: '#007BFF' }]}
+                    onPress={() => router.push('/list?filter=all')}
+                >
+                    <View style={[styles.iconCircle, { backgroundColor: '#007BFF' }]}>
+                        <Ionicons name="key" size={30} color="#FFF" />
+                    </View>
+                    <View>
+                        <Text style={styles.cardTitle}>Todas las Cuentas</Text>
+                        <Text style={styles.cardDesc}>Ver listado completo</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={24} color="#007BFF" style={styles.arrow} />
+                </TouchableOpacity>
+
+            </ScrollView>
+
+            {/* BOTÓN FLOTANTE (+) SIEMPRE PRESENTE */}
+            <TouchableOpacity style={styles.fab} onPress={() => router.push('/add')}>
+                <Ionicons name="add" size={35} color="#FFF" />
+            </TouchableOpacity>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: '#F8F9FA',
-    },
-    container: {
-        flex: 1,
-    },
-    searchContainer: {
+    safeArea: { flex: 1, backgroundColor: '#F8F9FA' },
+    container: { padding: 25 },
+    welcomeText: { fontSize: 28, fontWeight: '800', color: '#212529', marginTop: 10 },
+    subtitle: { fontSize: 16, color: '#6C757D', marginBottom: 30 },
+    mainCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        paddingHorizontal: 15,
-        margin: 15,
-        marginTop: Platform.OS === 'ios' ? 10 : 40, // Ajuste para el notch
-        height: 50,
-        elevation: 3,
+        padding: 20,
+        borderRadius: 20,
+        marginBottom: 20,
+        borderWidth: 1,
+        elevation: 4,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowRadius: 10,
     },
-    searchIcon: {
-        marginRight: 10,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: 16,
-        color: '#343A40',
-    },
-    list: {
-        paddingHorizontal: 15,
-    },
-    listContent: {
-        paddingBottom: 100, 
-    },
-    centered: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
-    },
-    statusText: {
-        fontSize: 18,
-        color: '#6C757D',
-        marginTop: 15,
-        fontWeight: '600',
-    },
-    authButton: {
-        marginTop: 25,
-        backgroundColor: '#007BFF',
-        paddingVertical: 12,
-        paddingHorizontal: 25,
-        borderRadius: 10,
-    },
-    authButtonText: {
-        color: '#FFFFFF',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
-    emptyContainer: {
-        alignItems: 'center',
-        marginTop: 80,
-    },
-    emptyText: {
-        fontSize: 16,
-        color: '#ADB5BD',
-        marginTop: 10,
-        textAlign: 'center',
-    },
-    fab: {
-        position: 'absolute',
-        width: 65,
-        height: 65,
-        right: 25,
-        bottom: 25, 
-        backgroundColor: '#007BFF',
-        borderRadius: 32.5,
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: 6,
-        shadowColor: '#007BFF',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-    },
+    iconCircle: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginRight: 20 },
+    cardTitle: { fontSize: 20, fontWeight: '700', color: '#212529' },
+    cardDesc: { fontSize: 14, color: '#6C757D' },
+    arrow: { position: 'absolute', right: 20 },
+    fab: { position: 'absolute', bottom: 30, right: 30, width: 70, height: 70, borderRadius: 35, backgroundColor: '#007BFF', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#007BFF', shadowOpacity: 0.4, shadowRadius: 10 },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    authButton: { marginTop: 20, backgroundColor: '#007BFF', padding: 15, borderRadius: 10 },
+    authButtonText: { color: '#FFF', fontWeight: 'bold' }
 });

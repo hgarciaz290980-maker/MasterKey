@@ -1,4 +1,4 @@
-// storage/credentials.ts (Versión FINAL con CRUD completo y verificado)
+// storage/credentials.ts (Versión Corregida y Exportada)
 
 import * as SecureStore from 'expo-secure-store';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,21 +10,22 @@ export interface Credential {
     accountName: string;
     username: string;
     password: string;
-    websiteUrl?: string;
     recoveryEmail?: string;
+    websiteUrl?: string;
     notes?: string;
+    category?: 'fav' | 'work' | 'none'; 
 }
 
 // --------------------------------------------------------
-// Funciones de utilidad
+// Funciones de utilidad (CORREGIDO: Ahora exportadas)
 // --------------------------------------------------------
 
-async function getAllCredentials(): Promise<Credential[]> {
+export async function getAllCredentials(): Promise<Credential[]> {
     const jsonValue = await SecureStore.getItemAsync(STORAGE_KEY);
     return jsonValue != null ? JSON.parse(jsonValue) : [];
 }
 
-async function saveAllCredentials(credentials: Credential[]): Promise<void> {
+export async function saveAllCredentials(credentials: Credential[]): Promise<void> {
     const jsonValue = JSON.stringify(credentials);
     await SecureStore.setItemAsync(STORAGE_KEY, jsonValue);
 }
@@ -59,7 +60,6 @@ export async function deleteCredential(id: string): Promise<void> {
     await saveAllCredentials(credentials);
 }
 
-// Función updateCredential (CORREGIDA y EXPORTADA)
 export async function updateCredential(updatedCredential: Credential): Promise<void> {
     let credentials = await getAllCredentials();
     const index = credentials.findIndex(c => c.id === updatedCredential.id);
@@ -68,7 +68,6 @@ export async function updateCredential(updatedCredential: Credential): Promise<v
         credentials[index] = updatedCredential;
         await saveAllCredentials(credentials);
     } else {
-        // No lanzamos un error fuerte, solo registramos.
         console.error("No se encontró la credencial para actualizar (ID: " + updatedCredential.id + ")");
     }
 }

@@ -1,4 +1,4 @@
-// components/EditCredentialModal.tsx
+// app/components/EditCredentialModal.tsx
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -12,19 +12,19 @@ import {
     Platform,
     TouchableWithoutFeedback,
     Keyboard,
-    ActivityIndicator
+    ActivityIndicator,
+    Alert // Cambiado alert por Alert de RN para mejor UX
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Credential } from '@/storage/credentials';
 
-// Define las props que recibirá el modal
+// Props del modal
 interface EditModalProps {
     isVisible: boolean;
     onClose: () => void;
-    onSave: (newValue: string) => Promise<void>; // Función para guardar el nuevo valor
-    fieldLabel: string; // Etiqueta del campo (ej: 'Usuario', 'Contraseña')
-    initialValue: string | undefined; // Valor actual del campo
-    isPassword?: boolean; // Si es un campo de contraseña
+    onSave: (newValue: string) => Promise<void>; 
+    fieldLabel: string; 
+    initialValue: string | undefined; 
+    isPassword?: boolean; 
 }
 
 const EditCredentialModal: React.FC<EditModalProps> = ({ 
@@ -39,14 +39,13 @@ const EditCredentialModal: React.FC<EditModalProps> = ({
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Actualiza el estado local si cambia el valor inicial
     useEffect(() => {
         setNewValue(initialValue || '');
-    }, [initialValue]);
+    }, [initialValue, isVisible]); // Se resetea al abrirse
 
     const handleSave = async () => {
         if (!newValue.trim()) {
-            alert(`El campo ${fieldLabel} no puede estar vacío.`);
+            Alert.alert("Atención", `El campo ${fieldLabel} no puede estar vacío.`);
             return;
         }
         setIsSaving(true);
@@ -54,7 +53,7 @@ const EditCredentialModal: React.FC<EditModalProps> = ({
             await onSave(newValue.trim());
             onClose(); 
         } catch (error) {
-            alert('Error al guardar: ' + (error as Error).message);
+            Alert.alert('Error', 'No se pudo actualizar: ' + (error as Error).message);
         } finally {
             setIsSaving(false);
         }
@@ -62,22 +61,22 @@ const EditCredentialModal: React.FC<EditModalProps> = ({
 
     return (
         <Modal
-            animationType="fade"
+            animationType="slide" // 'slide' se siente más natural en Android
             transparent={true}
             visible={isVisible}
             onRequestClose={onClose}
         >
-            <KeyboardAvoidingView
-                style={styles.centeredView}
-                behavior={Platform.OS === "ios" ? "padding" : "height"}
-            >
-                <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+                <KeyboardAvoidingView
+                    style={styles.centeredView}
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
+                >
                     <View style={styles.modalView}>
                         
                         <View style={styles.header}>
                             <Text style={styles.title}>Editar {fieldLabel}</Text>
-                            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                                <Ionicons name="close-circle-outline" size={28} color="#6C757D" />
+                            <TouchableOpacity onPress={onClose} style={styles.closeButton} disabled={isSaving}>
+                                <Ionicons name="close-circle" size={28} color="#6C757D" />
                             </TouchableOpacity>
                         </View>
 
@@ -93,6 +92,7 @@ const EditCredentialModal: React.FC<EditModalProps> = ({
                                 secureTextEntry={isPassword && !isPasswordVisible}
                                 autoCapitalize="none"
                                 editable={!isSaving}
+                                autoFocus={true} // El foco automático ayuda al usuario
                             />
                             {isPassword && (
                                 <TouchableOpacity 
@@ -100,7 +100,7 @@ const EditCredentialModal: React.FC<EditModalProps> = ({
                                     style={styles.passwordToggle}
                                 >
                                     <Ionicons 
-                                        name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'} 
+                                        name={isPasswordVisible ? 'eye-off' : 'eye'} 
                                         size={22} 
                                         color="#6C757D" 
                                     />
@@ -108,21 +108,31 @@ const EditCredentialModal: React.FC<EditModalProps> = ({
                             )}
                         </View>
 
-                        <TouchableOpacity 
-                            style={[styles.saveButton, isSaving && styles.saveButtonDisabled]} 
-                            onPress={handleSave}
-                            disabled={isSaving}
-                        >
-                            {isSaving ? (
-                                <ActivityIndicator color="#FFFFFF" />
-                            ) : (
-                                <Text style={styles.saveButtonText}>Guardar</Text>
-                            )}
-                        </TouchableOpacity>
+                        <View style={styles.buttonRow}>
+                            <TouchableOpacity 
+                                style={styles.cancelButton} 
+                                onPress={onClose}
+                                disabled={isSaving}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancelar</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity 
+                                style={[styles.saveButton, isSaving && styles.saveButtonDisabled]} 
+                                onPress={handleSave}
+                                disabled={isSaving}
+                            >
+                                {isSaving ? (
+                                    <ActivityIndicator color="#FFFFFF" />
+                                ) : (
+                                    <Text style={styles.saveButtonText}>Guardar</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
 
                     </View>
-                </TouchableWithoutFeedback>
-            </KeyboardAvoidingView>
+                </KeyboardAvoidingView>
+            </TouchableWithoutFeedback>
         </Modal>
     );
 };
@@ -132,45 +142,46 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.4)', // Fondo oscuro
+        backgroundColor: 'rgba(0, 0, 0, 0.6)', // Un poco más oscuro para resaltar el modal
     },
     modalView: {
-        width: '90%',
-        backgroundColor: 'white',
-        borderRadius: 15,
-        padding: 25,
+        width: '85%',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 20,
+        elevation: 10,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 5 },
         shadowOpacity: 0.3,
         shadowRadius: 5,
-        elevation: 8,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: 15,
     },
     title: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: 'bold',
-        color: '#343A40',
+        color: '#212529',
     },
     closeButton: {
         padding: 5,
     },
     label: {
-        fontSize: 14,
-        color: '#6C757D',
-        marginBottom: 8,
+        fontSize: 13,
+        color: '#495057',
+        marginBottom: 10,
+        fontWeight: '500',
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#F8F9FA',
-        borderRadius: 8,
+        backgroundColor: '#F1F3F5',
+        borderRadius: 12,
         borderWidth: 1,
-        borderColor: '#E9ECEF',
+        borderColor: '#DEE2E6',
         marginBottom: 20,
     },
     input: {
@@ -178,19 +189,36 @@ const styles = StyleSheet.create({
         height: 50,
         paddingHorizontal: 15,
         fontSize: 16,
-        color: '#343A40',
+        color: '#212529',
     },
     passwordToggle: {
         paddingHorizontal: 15,
     },
+    buttonRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: 10,
+    },
     saveButton: {
-        backgroundColor: '#28A745',
-        padding: 15,
-        borderRadius: 8,
+        flex: 1,
+        backgroundColor: '#007BFF', // Azul profesional
+        paddingVertical: 12,
+        borderRadius: 10,
         alignItems: 'center',
     },
+    cancelButton: {
+        flex: 1,
+        backgroundColor: '#E9ECEF',
+        paddingVertical: 12,
+        borderRadius: 10,
+        alignItems: 'center',
+    },
+    cancelButtonText: {
+        color: '#495057',
+        fontWeight: '600',
+    },
     saveButtonDisabled: {
-        backgroundColor: '#A0D8B2',
+        backgroundColor: '#B0D4FF',
     },
     saveButtonText: {
         color: '#FFFFFF',

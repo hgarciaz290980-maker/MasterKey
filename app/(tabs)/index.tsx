@@ -1,10 +1,20 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, useColorScheme } from 'react-native';
+import { 
+    View, 
+    Text, 
+    StyleSheet, 
+    TouchableOpacity, 
+    SafeAreaView, 
+    ScrollView, 
+    useColorScheme, 
+    StatusBar, 
+    Platform,
+    BackHandler // Para poder cerrar la app
+} from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 
-// Intentaremos la ruta absoluta que suele ser más segura en Expo
 import BackupManager from '../components/BackupManager'; 
 
 export default function DashboardScreen() {
@@ -27,11 +37,19 @@ export default function DashboardScreen() {
         try {
             const result = await LocalAuthentication.authenticateAsync({
                 promptMessage: 'Desbloquea MasterKey',
+                fallbackLabel: 'Usar PIN del sistema',
+                disableDeviceFallback: false,
             });
-            if (result.success) setIsAuthenticated(true);
+            if (result.success) {
+                setIsAuthenticated(true);
+            }
         } catch (e) {
-            setIsAuthenticated(true); // Entrar si falla el sensor
+            console.error("Error en autenticación", e);
         }
+    };
+
+    const handleExitApp = () => {
+        BackHandler.exitApp(); // Esta función cierra la app en Android
     };
 
     useFocusEffect(
@@ -40,22 +58,49 @@ export default function DashboardScreen() {
         }, [isAuthenticated])
     );
 
+    // PANTALLA DE BLOQUEO (Corregida con botón de Salida)
     if (!isAuthenticated) {
         return (
             <View style={[styles.centered, { backgroundColor: theme.background }]}>
-                <Ionicons name="lock-closed" size={80} color={theme.primary} />
-                <TouchableOpacity style={[styles.authButton, { backgroundColor: theme.primary }]} onPress={authenticate}>
-                    <Text style={styles.authButtonText}>Desbloquear</Text>
+                <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+                <Ionicons name="lock-closed" size={100} color={theme.primary} />
+                <Text style={[styles.authTitle, { color: theme.text }]}>App Bloqueada</Text>
+                
+                <TouchableOpacity 
+                    style={[styles.authButton, { backgroundColor: theme.primary }]} 
+                    onPress={authenticate}
+                >
+                    <Text style={styles.authButtonText}>Intentar de nuevo</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    style={styles.exitButton} 
+                    onPress={handleExitApp}
+                >
+                    <Text style={[styles.exitButtonText, { color: theme.subText }]}>Salir de MasterKey</Text>
                 </TouchableOpacity>
             </View>
         );
     }
 
+    // DASHBOARD PRINCIPAL (Corregido con Safe Area y Margen de Notch)
     return (
         <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-            <Stack.Screen options={{ title: "MasterKey", headerStyle: { backgroundColor: theme.background }, headerTintColor: theme.text }} />
+            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+            <Stack.Screen 
+                options={{ 
+                    title: "MasterKey", 
+                    headerShown: true,
+                    headerStyle: { backgroundColor: theme.background }, 
+                    headerTintColor: theme.text,
+                    headerShadowVisible: false
+                }} 
+            />
             
-            <ScrollView contentContainerStyle={styles.container}>
+            <ScrollView 
+                contentContainerStyle={[styles.container, { paddingTop: Platform.OS === 'android' ? 10 : 0 }]}
+                showsVerticalScrollIndicator={false}
+            >
                 <Text style={[styles.welcomeText, { color: theme.text }]}>Hola, Hugo</Text>
                 <Text style={[styles.subtitle, { color: theme.subText }]}>¿Qué claves necesitas hoy?</Text>
 
@@ -78,32 +123,42 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
 
                 <View style={{ marginTop: 20, paddingBottom: 100 }}>
-                    <Text style={[styles.sectionTitle, { color: theme.subText }]}>Seguridad</Text>
-                    {/* El botón ahora es opcional, si falla el archivo no rompe la app */}
-                    { BackupManager ? <BackupManager /> : <Text>Cargando herramientas...</Text> }
+                    <Text style={[styles.sectionTitle, { color: theme.subText }]}>Herramientas</Text>
+                    { BackupManager ? <BackupManager /> : <Text style={{color: theme.subText}}>Cargando herramientas...</Text> }
                 </View>
 
             </ScrollView>
 
-            <TouchableOpacity style={[styles.fab, { backgroundColor: theme.primary }]} onPress={() => router.push('/add')}>
-                <Ionicons name="add" size={35} color="#FFF" />
+            <TouchableOpacity 
+                activeOpacity={0.8}
+                style={[styles.fab, { backgroundColor: theme.primary }]} 
+                onPress={() => router.push('/add')}
+            >
+                <Ionicons name="add" size={40} color="#FFF" />
             </TouchableOpacity>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1 },
+    safeArea: { 
+        flex: 1,
+        // Añadimos margen arriba para evitar el notch en Android
+        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 
+    },
     container: { padding: 25 },
-    welcomeText: { fontSize: 28, fontWeight: '800' },
-    subtitle: { fontSize: 16, marginBottom: 20 },
-    sectionTitle: { fontSize: 14, fontWeight: '700', marginLeft: 10, marginBottom: 5, textTransform: 'uppercase' },
-    mainCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 20, marginBottom: 15, borderWidth: 1 },
-    iconCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+    welcomeText: { fontSize: 32, fontWeight: '800' },
+    subtitle: { fontSize: 16, marginBottom: 30 },
+    sectionTitle: { fontSize: 13, fontWeight: '700', marginLeft: 10, marginBottom: 15, textTransform: 'uppercase', letterSpacing: 1 },
+    mainCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 24, marginBottom: 15, borderWidth: 1, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+    iconCircle: { width: 55, height: 55, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
     cardTitle: { fontSize: 18, fontWeight: '700' },
     arrow: { position: 'absolute', right: 20 },
-    fab: { position: 'absolute', bottom: 30, right: 25, width: 65, height: 65, borderRadius: 35, justifyContent: 'center', alignItems: 'center', elevation: 8 },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    authButton: { marginTop: 20, padding: 15, borderRadius: 10 },
-    authButtonText: { color: '#FFF', fontWeight: 'bold' }
+    fab: { position: 'absolute', bottom: 30, right: 25, width: 70, height: 70, borderRadius: 35, justifyContent: 'center', alignItems: 'center', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.3, shadowRadius: 5 },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+    authTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20 },
+    authButton: { marginTop: 30, paddingVertical: 15, paddingHorizontal: 40, borderRadius: 15, width: '100%', alignItems: 'center' },
+    authButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
+    exitButton: { marginTop: 20, padding: 10 },
+    exitButtonText: { fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' }
 });

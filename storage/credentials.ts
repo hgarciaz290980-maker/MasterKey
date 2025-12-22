@@ -1,7 +1,5 @@
-// storage/credentials.ts (Versión Corregida y Exportada)
-
+// storage/credentials.ts
 import * as SecureStore from 'expo-secure-store';
-import { v4 as uuidv4 } from 'uuid';
 
 const STORAGE_KEY = 'masterkey_credentials';
 
@@ -16,13 +14,18 @@ export interface Credential {
     category?: 'fav' | 'work' | 'none'; 
 }
 
-// --------------------------------------------------------
-// Funciones de utilidad (CORREGIDO: Ahora exportadas)
-// --------------------------------------------------------
+// Generador de ID manual para evitar el error de "crypto.getRandomValues"
+const generateId = () => {
+    return Date.now().toString(36) + Math.random().toString(36).substring(2);
+};
 
 export async function getAllCredentials(): Promise<Credential[]> {
-    const jsonValue = await SecureStore.getItemAsync(STORAGE_KEY);
-    return jsonValue != null ? JSON.parse(jsonValue) : [];
+    try {
+        const jsonValue = await SecureStore.getItemAsync(STORAGE_KEY);
+        return jsonValue != null ? JSON.parse(jsonValue) : [];
+    } catch (e) {
+        return [];
+    }
 }
 
 export async function saveAllCredentials(credentials: Credential[]): Promise<void> {
@@ -30,14 +33,10 @@ export async function saveAllCredentials(credentials: Credential[]): Promise<voi
     await SecureStore.setItemAsync(STORAGE_KEY, jsonValue);
 }
 
-// --------------------------------------------------------
-// Funciones del CRUD (Crear, Leer, Actualizar, Eliminar)
-// --------------------------------------------------------
-
 export async function createCredential(newCredential: Omit<Credential, 'id'>): Promise<Credential> {
     const credentials = await getAllCredentials();
     const credentialWithId: Credential = {
-        id: uuidv4(),
+        id: generateId(),
         ...newCredential,
     };
     credentials.push(credentialWithId);
@@ -45,10 +44,7 @@ export async function createCredential(newCredential: Omit<Credential, 'id'>): P
     return credentialWithId;
 }
 
-export async function loadCredentials(): Promise<Credential[]> {
-    return getAllCredentials();
-}
-
+// ESTA ES LA FUNCIÓN QUE FALTABA Y CAUSABA EL ERROR EN [id].tsx
 export async function getCredentialById(id: string): Promise<Credential | null> {
     const credentials = await getAllCredentials();
     return credentials.find(c => c.id === id) || null;
@@ -63,11 +59,8 @@ export async function deleteCredential(id: string): Promise<void> {
 export async function updateCredential(updatedCredential: Credential): Promise<void> {
     let credentials = await getAllCredentials();
     const index = credentials.findIndex(c => c.id === updatedCredential.id);
-    
     if (index !== -1) {
         credentials[index] = updatedCredential;
         await saveAllCredentials(credentials);
-    } else {
-        console.error("No se encontró la credencial para actualizar (ID: " + updatedCredential.id + ")");
     }
 }

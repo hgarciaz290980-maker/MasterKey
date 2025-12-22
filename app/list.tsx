@@ -7,18 +7,32 @@ import {
     SafeAreaView, 
     TextInput, 
     TouchableOpacity,
-    Platform 
+    Platform,
+    useColorScheme 
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-// Nos aseguramos de que estas rutas sean exactas a tu estructura actual
+// Importaciones de lógica
 import { getAllCredentials, Credential } from '../storage/credentials';
 import CredentialCard from './components/CredentialCard'; 
 
 export default function ListScreen() {
     const router = useRouter();
     const { filter } = useLocalSearchParams<{ filter: string }>();
+    const colorScheme = useColorScheme();
+    
+    // Diccionario de colores integrado
+    const isDark = colorScheme === 'dark';
+    const theme = {
+        background: isDark ? '#121212' : '#F8F9FA',
+        text: isDark ? '#F8F9FA' : '#212529',
+        card: isDark ? '#1E1E1E' : '#FFFFFF',
+        subText: isDark ? '#ADB5BD' : '#6C757D',
+        border: isDark ? '#333333' : '#E9ECEF',
+        primary: isDark ? '#3DA9FC' : '#007BFF',
+        input: isDark ? '#2C2C2C' : '#FFFFFF'
+    };
     
     const [allCredentials, setAllCredentials] = useState<Credential[]>([]);
     const [filteredData, setFilteredData] = useState<Credential[]>([]);
@@ -68,26 +82,29 @@ export default function ListScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
             <Stack.Screen options={{ 
                 title: getTitle(),
-                headerShown: true 
+                headerShown: true,
+                headerStyle: { backgroundColor: theme.background },
+                headerTintColor: theme.text,
             }} />
             
             <View style={styles.mainContainer}>
                 {/* BUSCADOR */}
-                <View style={styles.searchBar}>
-                    <Ionicons name="search" size={20} color="#ADB5BD" style={{ marginRight: 10 }} />
+                <View style={[styles.searchBar, { backgroundColor: theme.input, borderColor: theme.border }]}>
+                    <Ionicons name="search" size={20} color={theme.subText} style={{ marginRight: 10 }} />
                     <TextInput 
                         placeholder="Buscar cuenta..." 
-                        style={styles.searchInput}
+                        placeholderTextColor={theme.subText}
+                        style={[styles.searchInput, { color: theme.text }]}
                         value={searchQuery}
                         onChangeText={handleSearch}
                         autoCapitalize="none"
                     />
                     {searchQuery.length > 0 && (
                         <TouchableOpacity onPress={() => handleSearch('')}>
-                            <Ionicons name="close-circle" size={20} color="#ADB5BD" />
+                            <Ionicons name="close-circle" size={20} color={theme.subText} />
                         </TouchableOpacity>
                     )}
                 </View>
@@ -105,16 +122,15 @@ export default function ListScreen() {
                     contentContainerStyle={styles.listContent}
                     ListEmptyComponent={
                         <View style={styles.emptyState}>
-                            <Ionicons name="document-text-outline" size={60} color="#DEE2E6" />
-                            <Text style={styles.emptyText}>No hay cuentas aquí.</Text>
+                            <Ionicons name="document-text-outline" size={60} color={theme.border} />
+                            <Text style={[styles.emptyText, { color: theme.subText }]}>No hay cuentas aquí.</Text>
                         </View>
                     }
                 />
             </View>
 
-            {/* BOTÓN FLOTANTE (+) POSICIÓN FIJA Y SEGURA */}
             <TouchableOpacity 
-                style={styles.fab} 
+                style={[styles.fab, { backgroundColor: theme.primary }]} 
                 onPress={() => router.push('/add')}
             >
                 <Ionicons name="add" size={35} color="#FFF" />
@@ -124,53 +140,35 @@ export default function ListScreen() {
 }
 
 const styles = StyleSheet.create({
-    safeArea: { 
-        flex: 1, 
-        backgroundColor: '#F8F9FA' 
-    },
+    safeArea: { flex: 1 },
     mainContainer: { 
         flex: 1, 
         paddingHorizontal: 12,
-        paddingTop: Platform.OS === 'android' ? 55 : 65, // Baja el buscador para que no toque el título
+        paddingTop: Platform.OS === 'android' ? 55 : 65, 
         paddingBottom: Platform.OS === 'android' ? 50 : 40,
     },
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFF',
         paddingHorizontal: 15,
         height: 55,
         borderRadius: 14,
         marginBottom: 15,
         marginHorizontal: 5,
         borderWidth: 1,
-        borderColor: '#E9ECEF',
         elevation: 2,
     },
-    searchInput: { 
-        flex: 1, 
-        fontSize: 16, 
-        color: '#212529' 
-    },
-    listContent: { 
-        paddingBottom: 130 
-    },
-    emptyState: { 
-        alignItems: 'center', 
-        marginTop: 50 
-    },
-    emptyText: { 
-        color: '#ADB5BD', 
-        fontSize: 16 
-    },
+    searchInput: { flex: 1, fontSize: 16 },
+    listContent: { paddingBottom: 130 },
+    emptyState: { alignItems: 'center', marginTop: 50 },
+    emptyText: { fontSize: 16 },
     fab: { 
         position: 'absolute', 
-        bottom: 60, // Subido para evitar el borde inferior del sistema
+        bottom: 60, 
         right: 25, 
         width: 65, 
         height: 65, 
         borderRadius: 32.5, 
-        backgroundColor: '#007BFF', 
         justifyContent: 'center', 
         alignItems: 'center', 
         elevation: 10,
@@ -179,4 +177,4 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 4.65,
     },
-});
+}); // <-- Esta era la llave que faltaba cerrando el StyleSheet

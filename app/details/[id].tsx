@@ -1,5 +1,3 @@
-// app/details/[id].tsx (Versión con CATEGORÍAS integrada)
-
 import React, { useState, useCallback } from 'react';
 import { 
     View, 
@@ -10,26 +8,39 @@ import {
     TouchableOpacity, 
     Alert, 
     Platform, 
-    ScrollView 
+    ScrollView,
+    useColorScheme 
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard'; 
 
+// Importación de storage
 import { getCredentialById, deleteCredential, updateCredential, Credential } from '@/storage/credentials'; 
 import EditCredentialModal from '../components/EditCredentialModal'; 
 
-// Añadimos 'category' a las llaves editables
 type EditableKeys = 'accountName' | 'username' | 'password' | 'websiteUrl' | 'recoveryEmail' | 'notes' | 'category';
 
 export default function CredentialDetailsScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
+    const colorScheme = useColorScheme();
+    
+    const isDark = colorScheme === 'dark';
+    const theme = {
+        background: isDark ? '#121212' : '#F8F9FA',
+        text: isDark ? '#F8F9FA' : '#212529',
+        card: isDark ? '#1E1E1E' : '#FFFFFF',
+        subText: isDark ? '#ADB5BD' : '#6C757D',
+        border: isDark ? '#333333' : '#E9ECEF',
+        primary: isDark ? '#3DA9FC' : '#007BFF',
+        specialCard: isDark ? '#1A2A3A' : '#E6F0FF', 
+        specialText: isDark ? '#3DA9FC' : '#0056b3'
+    };
     
     const [credential, setCredential] = useState<Credential | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editingField, setEditingField] = useState<EditableKeys | ''>(''); 
     const [editingLabel, setEditingLabel] = useState('');
@@ -49,7 +60,7 @@ export default function CredentialDetailsScreen() {
         setIsLoading(true);
         try {
             const data = await getCredentialById(id); 
-            setCredential(data);
+            setCredential(data || null);
         } catch (error) {
             console.error("Error cargando detalles:", error);
             setCredential(null);
@@ -61,13 +72,12 @@ export default function CredentialDetailsScreen() {
     useFocusEffect(
         useCallback(() => {
             fetchCredential();
-            return () => {};
         }, [id])
     );
     
     const copyToClipboard = async (text: string | undefined, field: string) => {
         if (!text) {
-             Alert.alert("Error", `El campo ${field} está vacío.`);
+             Alert.alert("Aviso", `El campo ${field} está vacío.`);
              return;
         }
         await Clipboard.setStringAsync(text);
@@ -76,8 +86,8 @@ export default function CredentialDetailsScreen() {
 
     const handleDelete = () => {
         Alert.alert(
-            "Confirmar Eliminación",
-            "¿Estás seguro de que quieres eliminar esta credencial?",
+            "Eliminar",
+            "¿Estás seguro de que quieres borrar esta cuenta?",
             [
                 { text: "Cancelar", style: "cancel" },
                 {
@@ -87,7 +97,7 @@ export default function CredentialDetailsScreen() {
                         try {
                             if (id) {
                                 await deleteCredential(id);
-                                router.back(); 
+                                router.replace('/(tabs)'); // Volver al inicio después de borrar
                             }
                         } catch (error) {
                             Alert.alert("Error", "No se pudo eliminar.");
@@ -105,7 +115,6 @@ export default function CredentialDetailsScreen() {
         setIsModalVisible(true);
     };
 
-    // Función mejorada para manejar actualizaciones rápidas (como categoría)
     const updateCredentialField = async (field: EditableKeys, value: string) => {
         if (!credential) return;
         const updated = { ...credential, [field]: value };
@@ -124,113 +133,117 @@ export default function CredentialDetailsScreen() {
     };
 
     const HeaderButtons = () => (
-        <View style={{ flexDirection: 'row', marginRight: 10 }}>
-            <TouchableOpacity onPress={handleDelete} style={{ marginLeft: 15 }} disabled={!credential}>
-                <Ionicons name="trash-outline" size={24} color={!credential ? '#ADB5BD' : '#DC3545'} />
-            </TouchableOpacity>
-        </View>
+        <TouchableOpacity onPress={handleDelete} style={{ marginRight: 15 }} disabled={!credential}>
+            <Ionicons name="trash-outline" size={24} color={!credential ? '#ADB5BD' : '#DC3545'} />
+        </TouchableOpacity>
     );
 
     return (
-        <SafeAreaView style={styles.safeArea}>
-            <Stack.Screen options={{ title: credential?.accountName || "Detalles", headerRight: HeaderButtons }} />
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+            <Stack.Screen options={{ 
+                title: "Detalles", 
+                headerRight: HeaderButtons,
+                headerStyle: { backgroundColor: theme.background },
+                headerTintColor: theme.text,
+                headerShadowVisible: false
+            }} />
             
             {isLoading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#007BFF" />
+                    <ActivityIndicator size="large" color={theme.primary} />
                 </View>
             ) : credential ? (
-                <ScrollView contentContainerStyle={styles.scrollContainer}> 
+                <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}> 
                     
-                    {/* Tarjeta de Cuenta y SELECTOR DE CATEGORÍA */}
-                    <View style={[styles.detailCard, styles.accountNameCard]}>
-                        <Text style={styles.accountNameLabel}>Cuenta:</Text>
+                    {/* Tarjeta de Encabezado */}
+                    <View style={[styles.detailCard, { backgroundColor: theme.specialCard, borderColor: theme.primary, borderWidth: 1 }]}>
+                        <Text style={[styles.accountNameLabel, { color: theme.specialText }]}>Cuenta:</Text>
                         <View style={styles.accountNameContainer}>
-                            <Text style={styles.accountNameText}>{credential.accountName}</Text>
+                            <Text style={[styles.accountNameText, { color: theme.primary }]}>{credential.accountName}</Text>
                             <TouchableOpacity onPress={() => handleEditField('accountName')} style={styles.iconButton}>
-                                <Ionicons name="pencil-outline" size={22} color="#007BFF" /> 
+                                <Ionicons name="pencil-outline" size={22} color={theme.primary} /> 
                             </TouchableOpacity>
                         </View>
 
                         {/* Selector de Categoría Rápido */}
                         <View style={styles.categoryPicker}>
                             <TouchableOpacity 
-                                style={[styles.catBtn, credential.category === 'fav' && styles.catActiveFav]}
+                                style={[styles.catBtn, { backgroundColor: theme.card, borderColor: theme.border }, credential.category === 'fav' && styles.catActiveFav]}
                                 onPress={() => updateCredentialField('category', 'fav')}
                             >
-                                <Ionicons name="star" size={18} color={credential.category === 'fav' ? "#FFF" : "#FFC107"} />
-                                <Text style={[styles.catBtnText, credential.category === 'fav' && styles.textWhite]}>Fav</Text>
+                                <Ionicons name="star" size={16} color={credential.category === 'fav' ? "#FFF" : "#FFC107"} />
+                                <Text style={[styles.catBtnText, { color: theme.subText }, credential.category === 'fav' && styles.textWhite]}>Fav</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity 
-                                style={[styles.catBtn, credential.category === 'work' && styles.catActiveWork]}
+                                style={[styles.catBtn, { backgroundColor: theme.card, borderColor: theme.border }, credential.category === 'work' && styles.catActiveWork]}
                                 onPress={() => updateCredentialField('category', 'work')}
                             >
-                                <Ionicons name="briefcase" size={18} color={credential.category === 'work' ? "#FFF" : "#6f42c1"} />
-                                <Text style={[styles.catBtnText, credential.category === 'work' && styles.textWhite]}>Trabajo</Text>
+                                <Ionicons name="briefcase" size={16} color={credential.category === 'work' ? "#FFF" : "#6f42c1"} />
+                                <Text style={[styles.catBtnText, { color: theme.subText }, credential.category === 'work' && styles.textWhite]}>Trabajo</Text>
                             </TouchableOpacity>
 
                             <TouchableOpacity 
-                                style={[styles.catBtn, (credential.category === 'none' || !credential.category) && styles.catActiveNone]}
+                                style={[styles.catBtn, { backgroundColor: theme.card, borderColor: theme.border }, (credential.category === 'none' || !credential.category) && styles.catActiveNone]}
                                 onPress={() => updateCredentialField('category', 'none')}
                             >
-                                <Ionicons name="remove-circle-outline" size={18} color={(credential.category === 'none' || !credential.category) ? "#FFF" : "#6C757D"} />
-                                <Text style={[styles.catBtnText, (credential.category === 'none' || !credential.category) && styles.textWhite]}>Ninguna</Text>
+                                <Ionicons name="remove-circle-outline" size={16} color={(credential.category === 'none' || !credential.category) ? "#FFF" : "#6C757D"} />
+                                <Text style={[styles.catBtnText, { color: theme.subText }, (credential.category === 'none' || !credential.category) && styles.textWhite]}>Ninguna</Text>
                             </TouchableOpacity>
                         </View>
                     </View>
 
                     {/* Usuario */}
-                    <View style={styles.detailCard}>
-                        <Text style={styles.detailLabel}>Usuario:</Text>
+                    <View style={[styles.detailCard, { backgroundColor: theme.card }]}>
+                        <Text style={[styles.detailLabel, { color: theme.subText }]}>Usuario:</Text>
                         <View style={styles.detailValueContainer}>
-                            <Text style={styles.detailValue}>{credential.username}</Text>
+                            <Text style={[styles.detailValue, { color: theme.text }]}>{credential.username}</Text>
                             <TouchableOpacity onPress={() => handleEditField('username')} style={styles.iconButton}>
-                                <Ionicons name="pencil-outline" size={20} color="#6C757D" /> 
+                                <Ionicons name="pencil-outline" size={20} color={theme.subText} /> 
                             </TouchableOpacity>
                             <TouchableOpacity onPress={() => copyToClipboard(credential.username, 'Usuario')} style={styles.iconButton}>
-                                <Ionicons name="copy-outline" size={20} color="#007BFF" />
+                                <Ionicons name="copy-outline" size={20} color={theme.primary} />
                             </TouchableOpacity>
                         </View>
                     </View>
 
                     {/* Contraseña */}
-                    <View style={styles.detailCard}>
-                        <Text style={styles.detailLabel}>Contraseña:</Text>
+                    <View style={[styles.detailCard, { backgroundColor: theme.card }]}>
+                        <Text style={[styles.detailLabel, { color: theme.subText }]}>Contraseña:</Text>
                         <View style={styles.detailValueContainer}>
-                            <Text style={styles.detailValue}>
+                            <Text style={[styles.detailValue, { color: theme.text }]}>
                                 {isPasswordVisible ? credential.password : '••••••••••••••••'}
                             </Text>
                             <TouchableOpacity onPress={() => handleEditField('password')} style={styles.iconButton}>
-                                <Ionicons name="pencil-outline" size={20} color="#6C757D" /> 
+                                <Ionicons name="pencil-outline" size={20} color={theme.subText} /> 
                             </TouchableOpacity>
                             <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={styles.iconButton}>
-                                <Ionicons name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'} size={20} color="#6C757D" />
+                                <Ionicons name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'} size={20} color={theme.subText} />
                             </TouchableOpacity>
                             <TouchableOpacity onPress={() => copyToClipboard(credential.password, 'Contraseña')} style={styles.iconButton}>
-                                <Ionicons name="copy-outline" size={20} color="#007BFF" />
+                                <Ionicons name="copy-outline" size={20} color={theme.primary} />
                             </TouchableOpacity>
                         </View>
                     </View>
                     
                     {/* URL */}
-                    <View style={styles.detailCard}>
-                        <Text style={styles.detailLabel}>URL:</Text>
+                    <View style={[styles.detailCard, { backgroundColor: theme.card }]}>
+                        <Text style={[styles.detailLabel, { color: theme.subText }]}>URL Sitio Web:</Text>
                         <View style={styles.detailValueContainer}>
-                            <Text style={styles.detailValue}>{credential.websiteUrl || 'No definida'}</Text>
+                            <Text style={[styles.detailValue, { color: theme.text }]}>{credential.websiteUrl || 'No definida'}</Text>
                             <TouchableOpacity onPress={() => handleEditField('websiteUrl')} style={styles.iconButton}>
-                                <Ionicons name="pencil-outline" size={20} color="#6C757D" /> 
+                                <Ionicons name="pencil-outline" size={20} color={theme.subText} /> 
                             </TouchableOpacity>
                         </View>
                     </View>
 
                     {/* Notas */}
-                    <View style={styles.notesCard}>
-                        <Text style={styles.detailLabel}>Notas:</Text>
+                    <View style={[styles.notesCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.detailLabel, { color: theme.subText }]}>Notas Personales:</Text>
                         <View style={styles.detailValueContainer}>
-                            <Text style={styles.notesText}>{credential.notes || 'Sin notas adicionales'}</Text>
+                            <Text style={[styles.notesText, { color: theme.text }]}>{credential.notes || 'Sin notas adicionales'}</Text>
                             <TouchableOpacity onPress={() => handleEditField('notes')} style={styles.iconButton}>
-                                <Ionicons name="pencil-outline" size={20} color="#6C757D" /> 
+                                <Ionicons name="pencil-outline" size={20} color={theme.subText} /> 
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -242,10 +255,16 @@ export default function CredentialDetailsScreen() {
 
                 </ScrollView>
             ) : (
-                <View style={styles.container}><Text style={styles.errorText}>Error al cargar.</Text></View>
+                <View style={styles.loadingContainer}>
+                    <Text style={[styles.errorText, { color: theme.text }]}>No se encontró la credencial.</Text>
+                    <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
+                        <Text style={{ color: theme.primary }}>Volver atrás</Text>
+                    </TouchableOpacity>
+                </View>
             )}
             
-            {credential && editingField && editingField !== 'category' && (
+            {/* Modal de edición reutilizable */}
+            {isModalVisible && editingField && editingField !== 'category' && credential && (
                 <EditCredentialModal
                     isVisible={isModalVisible}
                     onClose={() => setIsModalVisible(false)}
@@ -260,29 +279,27 @@ export default function CredentialDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: '#F8F9FA' },
-    container: { flex: 1, padding: 20 },
-    scrollContainer: { padding: 20, paddingTop: Platform.OS === 'ios' ? 20 : 40, paddingBottom: 40 },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    errorText: { fontSize: 18, color: '#DC3545', textAlign: 'center', marginTop: 50 },
-    accountNameCard: { padding: 15, backgroundColor: '#E6F0FF', borderColor: '#007BFF', borderWidth: 1 },
-    accountNameLabel: { fontSize: 12, color: '#0056b3', marginBottom: 2 },
+    safeArea: { flex: 1 },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
+    scrollContainer: { padding: 20, paddingBottom: 60 },
+    errorText: { fontSize: 18, textAlign: 'center' },
+    accountNameLabel: { fontSize: 12, marginBottom: 2, textTransform: 'uppercase', fontWeight: 'bold' },
     accountNameContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    accountNameText: { fontSize: 22, fontWeight: 'bold', color: '#007BFF', flex: 1 },
+    accountNameText: { fontSize: 24, fontWeight: '800', flex: 1 },
     categoryPicker: { flexDirection: 'row', marginTop: 15, justifyContent: 'space-between' },
-    catBtn: { flexDirection: 'row', alignItems: 'center', padding: 8, borderRadius: 8, backgroundColor: '#FFF', flex: 0.3, justifyContent: 'center', borderWidth: 1, borderColor: '#D0E3FF' },
-    catBtnText: { fontSize: 11, fontWeight: '700', marginLeft: 4, color: '#495057' },
+    catBtn: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderRadius: 10, flex: 0.31, justifyContent: 'center', borderWidth: 1 },
+    catBtnText: { fontSize: 11, fontWeight: '700', marginLeft: 4 },
     catActiveFav: { backgroundColor: '#FFC107', borderColor: '#FFC107' },
     catActiveWork: { backgroundColor: '#6f42c1', borderColor: '#6f42c1' },
     catActiveNone: { backgroundColor: '#6C757D', borderColor: '#6C757D' },
     textWhite: { color: '#FFF' },
-    detailCard: { backgroundColor: '#FFFFFF', padding: 15, borderRadius: 12, marginBottom: 12, elevation: 2 },
-    detailLabel: { fontSize: 13, color: '#6C757D', marginBottom: 4 },
+    detailCard: { padding: 18, borderRadius: 16, marginBottom: 12, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 },
+    detailLabel: { fontSize: 13, marginBottom: 6, fontWeight: '600' },
     detailValueContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    detailValue: { fontSize: 16, fontWeight: '600', color: '#343A40', flex: 1 },
-    iconButton: { marginLeft: 12 },
-    notesCard: { backgroundColor: '#FFF', padding: 15, borderRadius: 12, marginTop: 5, borderWidth: 1, borderColor: '#EEE' },
-    notesText: { fontSize: 15, color: '#495057', lineHeight: 22, flex: 1 },
-    deleteButtonBody: { flexDirection: 'row', backgroundColor: '#DC3545', padding: 15, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 30 },
+    detailValue: { fontSize: 16, fontWeight: '500', flex: 1 },
+    iconButton: { padding: 5, marginLeft: 10 },
+    notesCard: { padding: 18, borderRadius: 16, marginTop: 5, borderWidth: 1 },
+    notesText: { fontSize: 15, lineHeight: 22, flex: 1 },
+    deleteButtonBody: { flexDirection: 'row', backgroundColor: '#DC3545', padding: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 35 },
     deleteButtonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 16, marginLeft: 10 }
 });

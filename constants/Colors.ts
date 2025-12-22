@@ -1,19 +1,30 @@
-const tintColorLight = '#2f95dc';
-const tintColorDark = '#fff';
+// constants/Colors.ts
+import { useColorScheme } from 'react-native';
 
-export default {
+export const Colors = {
   light: {
-    text: '#000',
-    background: '#fff',
-    tint: tintColorLight,
-    tabIconDefault: '#ccc',
-    tabIconSelected: tintColorLight,
+    background: '#F8F9FA',
+    card: '#FFFFFF',
+    text: '#212529',
+    subText: '#6C757D',
+    border: '#E9ECEF',
+    primary: '#007BFF',
+    searchBar: '#FFFFFF',
   },
   dark: {
-    text: '#fff',
-    background: '#000',
-    tint: tintColorDark,
-    tabIconDefault: '#ccc',
-    tabIconSelected: tintColorDark,
+    background: '#121212', // Negro mate
+    card: '#1E1E1E',       // Gris muy oscuro para las tarjetas
+    text: '#F8F9FA',       // Blanco suave para que no lastime la vista
+    subText: '#ADB5BD',    // Gris claro para usuarios/detalles
+    border: '#333333',     // Bordes sutiles
+    primary: '#3DA9FC',    // Un azul un poco más brillante para que resalte en negro
+    searchBar: '#2C2C2C',  // Fondo del buscador oscuro
   },
+};
+
+// Este es el "cerebro" que nos dirá qué colores usar
+export const useThemeColor = () => {
+  const colorScheme = useColorScheme(); // Detecta si el sistema está en 'light' o 'dark'
+  const theme = colorScheme === 'dark' ? Colors.dark : Colors.light;
+  return theme;
 };

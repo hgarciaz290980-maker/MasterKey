@@ -1,21 +1,38 @@
-// app/components/InputField.tsx (FINAL)
-
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, TextInputProps, StyleProp, TextStyle } from 'react-native'; 
+import { View, Text, TextInput, StyleSheet, TextInputProps, StyleProp, TextStyle, useColorScheme } from 'react-native'; 
 
 interface InputFieldProps extends TextInputProps {
   label: string;
-  // Usamos TextStyle para evitar conflictos de tipos con TextInput
   inputStyle?: StyleProp<TextStyle>; 
 }
 
 const InputField: React.FC<InputFieldProps> = ({ label, inputStyle, ...rest }) => { 
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  // Configuración de colores internos del componente
+  const theme = {
+    label: isDark ? '#F8F9FA' : '#343A40',     // Gris muy claro en oscuro, oscuro en claro
+    inputBg: isDark ? '#2C2C2C' : '#FFFFFF',   // Fondo oscuro para la celda
+    inputText: isDark ? '#FFFFFF' : '#343A40', // Texto blanco al escribir
+    border: isDark ? '#444444' : '#DEE2E6',    // Borde sutil
+    placeholder: isDark ? '#888888' : '#ADB5BD'
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: theme.label }]}>{label}</Text>
       <TextInput
-        style={[styles.input, inputStyle]} 
-        placeholderTextColor="#ADB5BD"
+        style={[
+          styles.input, 
+          { 
+            backgroundColor: theme.inputBg, 
+            borderColor: theme.border, 
+            color: theme.inputText 
+          }, 
+          inputStyle
+        ]} 
+        placeholderTextColor={theme.placeholder}
         {...rest}
       />
     </View>
@@ -30,18 +47,14 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#343A40',
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#DEE2E6',
     borderRadius: 8,
     paddingHorizontal: 15,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#343A40',
   },
 });
 

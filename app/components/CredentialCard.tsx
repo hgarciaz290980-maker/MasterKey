@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Credential } from '../../storage/credentials';
 
@@ -10,10 +10,21 @@ interface CredentialCardProps {
 
 export default function CredentialCard({ credential, onPress }: CredentialCardProps) {
     const [imageError, setImageError] = useState(false);
+    const colorScheme = useColorScheme();
+    
+    // Diccionario de colores integrado para la tarjeta
+    const isDark = colorScheme === 'dark';
+    const theme = {
+        card: isDark ? '#1E1E1E' : '#FFFFFF',
+        text: isDark ? '#F8F9FA' : '#212529',
+        subText: isDark ? '#ADB5BD' : '#6C757D',
+        border: isDark ? '#333333' : '#E9ECEF',
+        iconBg: isDark ? '#2C2C2C' : '#F8F9FA',
+        primary: isDark ? '#3DA9FC' : '#007BFF'
+    };
 
     const getInitial = (name: string) => (name ? name.charAt(0).toUpperCase() : '?');
 
-    // Función para limpiar la URL y obtener el dominio
     const getDomain = (url: string | undefined) => {
         if (!url) return null;
         try {
@@ -28,12 +39,15 @@ export default function CredentialCard({ credential, onPress }: CredentialCardPr
     };
 
     const domain = getDomain(credential.websiteUrl);
-    // Servicio de Google para Favicons
     const logoUrl = domain ? `https://www.google.com/s2/favicons?sz=128&domain=${domain}` : null;
 
     return (
-        <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.7}>
-            <View style={styles.iconContainer}>
+        <TouchableOpacity 
+            style={[styles.card, { backgroundColor: theme.card }]} 
+            onPress={onPress} 
+            activeOpacity={0.7}
+        >
+            <View style={[styles.iconContainer, { backgroundColor: theme.iconBg, borderColor: theme.border }]}>
                 {logoUrl && !imageError ? (
                     <Image 
                         source={{ uri: logoUrl }} 
@@ -41,13 +55,19 @@ export default function CredentialCard({ credential, onPress }: CredentialCardPr
                         onError={() => setImageError(true)} 
                     />
                 ) : (
-                    <Text style={styles.initialText}>{getInitial(credential.accountName)}</Text>
+                    <Text style={[styles.initialText, { color: theme.primary }]}>
+                        {getInitial(credential.accountName)}
+                    </Text>
                 )}
             </View>
             
             <View style={styles.infoContainer}>
-                <Text style={styles.accountName} numberOfLines={1}>{credential.accountName}</Text>
-                <Text style={styles.username} numberOfLines={1}>{credential.username}</Text>
+                <Text style={[styles.accountName, { color: theme.text }]} numberOfLines={1}>
+                    {credential.accountName}
+                </Text>
+                <Text style={[styles.username, { color: theme.subText }]} numberOfLines={1}>
+                    {credential.username}
+                </Text>
             </View>
 
             <Ionicons name="chevron-forward" size={18} color="#ADB5BD" />
@@ -59,7 +79,6 @@ const styles = StyleSheet.create({
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
         padding: 15,
         borderRadius: 14,
         marginBottom: 10,
@@ -74,12 +93,10 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: '#F8F9FA',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 15,
         borderWidth: 1,
-        borderColor: '#E9ECEF',
         overflow: 'hidden',
     },
     logoImage: {
@@ -90,9 +107,8 @@ const styles = StyleSheet.create({
     initialText: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#007BFF',
     },
     infoContainer: { flex: 1 },
-    accountName: { fontSize: 17, fontWeight: '600', color: '#212529', marginBottom: 2 },
-    username: { fontSize: 14, color: '#6C757D' },
+    accountName: { fontSize: 17, fontWeight: '600', marginBottom: 2 },
+    username: { fontSize: 14 },
 });

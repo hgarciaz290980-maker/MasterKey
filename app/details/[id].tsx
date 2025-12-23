@@ -281,7 +281,7 @@ export default function CredentialDetailsScreen() {
 const styles = StyleSheet.create({
     safeArea: { flex: 1 },
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-    scrollContainer: { padding: 20, paddingBottom: 60 },
+    scrollContainer: { padding: 20, paddingBottom: 60, paddingTop: 60 },
     errorText: { fontSize: 18, textAlign: 'center' },
     accountNameLabel: { fontSize: 12, marginBottom: 2, textTransform: 'uppercase', fontWeight: 'bold' },
     accountNameContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

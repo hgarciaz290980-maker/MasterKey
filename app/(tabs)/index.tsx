@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useEffect } from 'react'; // Cambiamos useCallback por useEffect
 import { 
     View, 
     Text, 
@@ -9,9 +9,9 @@ import {
     useColorScheme, 
     StatusBar, 
     Platform,
-    BackHandler // Para poder cerrar la app
+    BackHandler 
 } from 'react-native';
-import { Stack, useRouter, useFocusEffect } from 'expo-router';
+import { Stack, useRouter } from 'expo-router'; // Quitamos useFocusEffect
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 
@@ -35,11 +35,22 @@ export default function DashboardScreen() {
 
     const authenticate = async () => {
         try {
+            // Verificamos si el dispositivo tiene hardware biométrico
+            const hasHardware = await LocalAuthentication.hasHardwareAsync();
+            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+            if (!hasHardware || !isEnrolled) {
+                // Si no hay huella configurada, dejamos pasar (por ahora)
+                setIsAuthenticated(true);
+                return;
+            }
+
             const result = await LocalAuthentication.authenticateAsync({
-                promptMessage: 'Desbloquea MasterKey',
+                promptMessage: 'Acceso a Bunker-K', // Nombre actualizado
                 fallbackLabel: 'Usar PIN del sistema',
                 disableDeviceFallback: false,
             });
+
             if (result.success) {
                 setIsAuthenticated(true);
             }
@@ -49,47 +60,50 @@ export default function DashboardScreen() {
     };
 
     const handleExitApp = () => {
-        BackHandler.exitApp(); // Esta función cierra la app en Android
+        BackHandler.exitApp();
     };
 
-    useFocusEffect(
-        useCallback(() => {
-            if (!isAuthenticated) authenticate();
-        }, [isAuthenticated])
-    );
+    // CAMBIO CLAVE: Usamos useEffect en lugar de useFocusEffect
+    // Esto solo se ejecuta cuando la app SE ABRE, no cuando regresas de otra pantalla.
+    useEffect(() => {
+        if (!isAuthenticated) {
+            authenticate();
+        }
+    }, []); // El arreglo vacío [] asegura que solo corra una vez al montar el componente
 
-    // PANTALLA DE BLOQUEO (Corregida con botón de Salida)
+    // PANTALLA DE BLOQUEO
     if (!isAuthenticated) {
         return (
             <View style={[styles.centered, { backgroundColor: theme.background }]}>
                 <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+                {/* Tu logo ahora es el candado o podrías poner un Image con tu logo aquí */}
                 <Ionicons name="lock-closed" size={100} color={theme.primary} />
-                <Text style={[styles.authTitle, { color: theme.text }]}>App Bloqueada</Text>
+                <Text style={[styles.authTitle, { color: theme.text }]}>Bunker-K Bloqueado</Text>
                 
                 <TouchableOpacity 
                     style={[styles.authButton, { backgroundColor: theme.primary }]} 
                     onPress={authenticate}
                 >
-                    <Text style={styles.authButtonText}>Intentar de nuevo</Text>
+                    <Text style={styles.authButtonText}>Desbloquear con Biometría</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity 
                     style={styles.exitButton} 
                     onPress={handleExitApp}
                 >
-                    <Text style={[styles.exitButtonText, { color: theme.subText }]}>Salir de MasterKey</Text>
+                    <Text style={[styles.exitButtonText, { color: theme.subText }]}>Salir de la app</Text>
                 </TouchableOpacity>
             </View>
         );
     }
 
-    // DASHBOARD PRINCIPAL (Corregido con Safe Area y Margen de Notch)
+    // DASHBOARD PRINCIPAL
     return (
         <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
             <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
             <Stack.Screen 
                 options={{ 
-                    title: "MasterKey", 
+                    title: "Bunker-K", // Nombre actualizado
                     headerShown: true,
                     headerStyle: { backgroundColor: theme.background }, 
                     headerTintColor: theme.text,
@@ -104,6 +118,7 @@ export default function DashboardScreen() {
                 <Text style={[styles.welcomeText, { color: theme.text }]}>Hola, Hugo</Text>
                 <Text style={[styles.subtitle, { color: theme.subText }]}>¿Qué claves necesitas hoy?</Text>
 
+                {/* Tus tarjetas de categorías se mantienen igual */}
                 <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => router.push('/list?filter=fav')}>
                     <View style={[styles.iconCircle, { backgroundColor: '#FFC107' }]}><Ionicons name="star" size={30} color="#FFF" /></View>
                     <View><Text style={[styles.cardTitle, { color: theme.text }]}>Mis Favoritos</Text></View>
@@ -142,11 +157,14 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
     safeArea: { 
-        flex: 1,
-        // Añadimos margen arriba para evitar el notch en Android
-        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 
+        flex: 1, // CAMBIAR A 1 para que la pantalla ocupe todo el espacio
+        backgroundColor: 'transparent', // O el color de tu fondo
     },
-    container: { padding: 25 },
+    container: { 
+        padding: 25, 
+        // Aumentamos a 80 para que el cambio sea drástico y confirmes que funciona
+        paddingTop: Platform.OS === 'android' ? 80 : 20 
+     },
     welcomeText: { fontSize: 32, fontWeight: '800' },
     subtitle: { fontSize: 16, marginBottom: 30 },
     sectionTitle: { fontSize: 13, fontWeight: '700', marginLeft: 10, marginBottom: 15, textTransform: 'uppercase', letterSpacing: 1 },

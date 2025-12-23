@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MasterKey",
+    "name": "Bunker-K",
     "slug": "MasterKey",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -23,7 +23,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.mkpro01.MasterKey"
+      "package": "com.mkpro01.bunkerk"
     },
     "web": {
       "bundler": "metro",

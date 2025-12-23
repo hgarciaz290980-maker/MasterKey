@@ -14,6 +14,7 @@ import {
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard'; 
+import * as LocalAuthentication from 'expo-local-authentication'; // PARA EL ACCESO
 
 // Importación de storage
 import { getCredentialById, deleteCredential, updateCredential, Credential } from '@/storage/credentials'; 
@@ -44,7 +45,8 @@ export default function CredentialDetailsScreen() {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editingField, setEditingField] = useState<EditableKeys | ''>(''); 
     const [editingLabel, setEditingLabel] = useState('');
-    
+    const [isUnlocked, setIsUnlocked] = useState(false); // PARA EL ACCESO
+
     const fieldMap: Record<EditableKeys, string> = {
         accountName: 'Nombre de Cuenta',
         username: 'Usuario',
@@ -61,6 +63,18 @@ export default function CredentialDetailsScreen() {
         try {
             const data = await getCredentialById(id); 
             setCredential(data || null);
+
+            // SOLO PIDE HUELLA AL ENTRAR
+            const result = await LocalAuthentication.authenticateAsync({
+                promptMessage: 'Acceso a la cuenta',
+                fallbackLabel: 'Usar PIN',
+            });
+
+            if (result.success) {
+                setIsUnlocked(true);
+            } else {
+                router.back(); // Si falla o cancela, regresa
+            }
         } catch (error) {
             console.error("Error cargando detalles:", error);
             setCredential(null);
@@ -72,6 +86,7 @@ export default function CredentialDetailsScreen() {
     useFocusEffect(
         useCallback(() => {
             fetchCredential();
+            return () => setIsUnlocked(false);
         }, [id])
     );
     
@@ -97,7 +112,7 @@ export default function CredentialDetailsScreen() {
                         try {
                             if (id) {
                                 await deleteCredential(id);
-                                router.replace('/(tabs)'); // Volver al inicio después de borrar
+                                router.replace('/(tabs)'); 
                             }
                         } catch (error) {
                             Alert.alert("Error", "No se pudo eliminar.");
@@ -138,6 +153,15 @@ export default function CredentialDetailsScreen() {
         </TouchableOpacity>
     );
 
+    // Pantalla de espera mientras se autentica
+    if (isLoading || !isUnlocked) {
+        return (
+            <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background, justifyContent: 'center' }]}>
+                <ActivityIndicator size="large" color={theme.primary} />
+            </SafeAreaView>
+        );
+    }
+
     return (
         <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
             <Stack.Screen options={{ 
@@ -148,14 +172,8 @@ export default function CredentialDetailsScreen() {
                 headerShadowVisible: false
             }} />
             
-            {isLoading ? (
-                <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color={theme.primary} />
-                </View>
-            ) : credential ? (
+            {credential ? (
                 <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}> 
-                    
-                    {/* Tarjeta de Encabezado */}
                     <View style={[styles.detailCard, { backgroundColor: theme.specialCard, borderColor: theme.primary, borderWidth: 1 }]}>
                         <Text style={[styles.accountNameLabel, { color: theme.specialText }]}>Cuenta:</Text>
                         <View style={styles.accountNameContainer}>
@@ -165,7 +183,6 @@ export default function CredentialDetailsScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        {/* Selector de Categoría Rápido */}
                         <View style={styles.categoryPicker}>
                             <TouchableOpacity 
                                 style={[styles.catBtn, { backgroundColor: theme.card, borderColor: theme.border }, credential.category === 'fav' && styles.catActiveFav]}
@@ -193,7 +210,6 @@ export default function CredentialDetailsScreen() {
                         </View>
                     </View>
 
-                    {/* Usuario */}
                     <View style={[styles.detailCard, { backgroundColor: theme.card }]}>
                         <Text style={[styles.detailLabel, { color: theme.subText }]}>Usuario:</Text>
                         <View style={styles.detailValueContainer}>
@@ -207,7 +223,6 @@ export default function CredentialDetailsScreen() {
                         </View>
                     </View>
 
-                    {/* Contraseña */}
                     <View style={[styles.detailCard, { backgroundColor: theme.card }]}>
                         <Text style={[styles.detailLabel, { color: theme.subText }]}>Contraseña:</Text>
                         <View style={styles.detailValueContainer}>
@@ -226,7 +241,6 @@ export default function CredentialDetailsScreen() {
                         </View>
                     </View>
                     
-                    {/* URL */}
                     <View style={[styles.detailCard, { backgroundColor: theme.card }]}>
                         <Text style={[styles.detailLabel, { color: theme.subText }]}>URL Sitio Web:</Text>
                         <View style={styles.detailValueContainer}>
@@ -237,7 +251,6 @@ export default function CredentialDetailsScreen() {
                         </View>
                     </View>
 
-                    {/* Notas */}
                     <View style={[styles.notesCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <Text style={[styles.detailLabel, { color: theme.subText }]}>Notas Personales:</Text>
                         <View style={styles.detailValueContainer}>
@@ -252,18 +265,9 @@ export default function CredentialDetailsScreen() {
                         <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
                         <Text style={styles.deleteButtonText}>Eliminar Credencial</Text>
                     </TouchableOpacity>
-
                 </ScrollView>
-            ) : (
-                <View style={styles.loadingContainer}>
-                    <Text style={[styles.errorText, { color: theme.text }]}>No se encontró la credencial.</Text>
-                    <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-                        <Text style={{ color: theme.primary }}>Volver atrás</Text>
-                    </TouchableOpacity>
-                </View>
-            )}
+            ) : null}
             
-            {/* Modal de edición reutilizable */}
             {isModalVisible && editingField && editingField !== 'category' && credential && (
                 <EditCredentialModal
                     isVisible={isModalVisible}

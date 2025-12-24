@@ -113,27 +113,27 @@ export default function DashboardScreen() {
                 showsVerticalScrollIndicator={false}
             >
                 <Text style={[styles.welcomeText, { color: theme.text }]}>Hola, Hugo</Text>
-                <Text style={[styles.subtitle, { color: theme.subText }]}>¿Qué claves necesitas hoy?</Text>
+                <Text style={[styles.subtitle, { color: theme.subText }]}>Tus llaves están más seguras en un Bunker.</Text>
 
                 <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => router.push('/list?filter=fav')}>
-                    <View style={[styles.iconCircle, { backgroundColor: '#FFC107' }]}><Ionicons name="star" size={30} color="#FFF" /></View>
-                    <View><Text style={[styles.cardTitle, { color: theme.text }]}>Mis Favoritos</Text></View>
+                    <View style={[styles.iconCircle, { backgroundColor: '#FFC107' }]}><Ionicons name="star" size={25} color="#FFF" /></View>
+                    <View><Text style={[styles.cardTitle, { color: theme.text }]}>Recurrentes</Text></View>
                     <Ionicons name="chevron-forward" size={24} color="#FFC107" style={styles.arrow} />
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => router.push('/list?filter=work')}>
-                    <View style={[styles.iconCircle, { backgroundColor: '#6f42c1' }]}><Ionicons name="briefcase" size={30} color="#FFF" /></View>
+                    <View style={[styles.iconCircle, { backgroundColor: '#6f42c1' }]}><Ionicons name="briefcase" size={25} color="#FFF" /></View>
                     <View><Text style={[styles.cardTitle, { color: theme.text }]}>Trabajo</Text></View>
                     <Ionicons name="chevron-forward" size={24} color="#6f42c1" style={styles.arrow} />
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => router.push('/list?filter=all')}>
-                    <View style={[styles.iconCircle, { backgroundColor: theme.primary }]}><Ionicons name="key" size={30} color="#FFF" /></View>
-                    <View><Text style={[styles.cardTitle, { color: theme.text }]}>Todas las Cuentas</Text></View>
+                    <View style={[styles.iconCircle, { backgroundColor: theme.primary }]}><Ionicons name="key" size={25} color="#FFF" /></View>
+                    <View><Text style={[styles.cardTitle, { color: theme.text }]}>Todas mis cuentas</Text></View>
                     <Ionicons name="chevron-forward" size={24} color={theme.primary} style={styles.arrow} />
                 </TouchableOpacity>
 
-                <View style={{ marginTop: 20, paddingBottom: 100 }}>
+                <View style={{ marginTop: 10, paddingBottom: 100 }}>
                     <Text style={[styles.sectionTitle, { color: theme.subText }]}>Herramientas</Text>
                     { BackupManager ? <BackupManager /> : <Text style={{color: theme.subText}}>Cargando herramientas...</Text> }
                 </View>
@@ -142,10 +142,10 @@ export default function DashboardScreen() {
 
             <TouchableOpacity 
                 activeOpacity={0.8}
-                style={[styles.fab, { backgroundColor: theme.primary }]} 
+                style={[styles.fab, { backgroundColor: '#007BFF' }]} 
                 onPress={() => router.push('/add')}
             >
-                <Ionicons name="add" size={40} color="#FFF" />
+                <Ionicons name="add" size={35} color="#FFF" />
             </TouchableOpacity>
         </SafeAreaView>
     );
@@ -153,15 +153,15 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: 'transparent' },
-    container: { padding: 25, paddingTop: Platform.OS === 'android' ? 80 : 20 },
-    welcomeText: { fontSize: 32, fontWeight: '800' },
+    container: { padding: 20, paddingTop: Platform.OS === 'android' ? 80 : 20 },
+    welcomeText: { fontSize: 30, fontWeight: '800' },
     subtitle: { fontSize: 16, marginBottom: 30 },
     sectionTitle: { fontSize: 13, fontWeight: '700', marginLeft: 10, marginBottom: 15, textTransform: 'uppercase', letterSpacing: 1 },
-    mainCard: { flexDirection: 'row', alignItems: 'center', padding: 20, borderRadius: 24, marginBottom: 15, borderWidth: 1, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
-    iconCircle: { width: 55, height: 55, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+    mainCard: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 18, marginBottom: 15, borderWidth: 1, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+    iconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
     cardTitle: { fontSize: 18, fontWeight: '700' },
     arrow: { position: 'absolute', right: 20 },
-    fab: { position: 'absolute', bottom: 30, right: 25, width: 70, height: 70, borderRadius: 35, justifyContent: 'center', alignItems: 'center', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.3, shadowRadius: 5 },
+    fab: { position: 'absolute', bottom: 70, right: 25, width: 55, height: 55, borderRadius: 32.5, justifyContent: 'center', alignItems: 'center', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.3, shadowRadius: 5 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
     authTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20 },
     authButton: { marginTop: 30, paddingVertical: 15, paddingHorizontal: 40, borderRadius: 15, width: '100%', alignItems: 'center' },

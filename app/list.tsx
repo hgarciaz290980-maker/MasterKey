@@ -130,7 +130,7 @@ export default function ListScreen() {
             </View>
 
             <TouchableOpacity 
-                style={[styles.fab, { backgroundColor: theme.primary }]} 
+                style={[styles.fab, { backgroundColor: '#007BFF' }]} 
                 onPress={() => router.push('/add')}
             >
                 <Ionicons name="add" size={35} color="#FFF" />
@@ -164,17 +164,17 @@ const styles = StyleSheet.create({
     emptyText: { fontSize: 16 },
     fab: { 
         position: 'absolute', 
-        bottom: 60, 
+        bottom: 70, 
         right: 25, 
-        width: 65, 
-        height: 65, 
+        width: 55, 
+        height: 55, 
         borderRadius: 32.5, 
         justifyContent: 'center', 
         alignItems: 'center', 
         elevation: 10,
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 5 },
         shadowOpacity: 0.3,
-        shadowRadius: 4.65,
+        shadowRadius: 5,
     },
 }); // <-- Esta era la llave que faltaba cerrando el StyleSheet

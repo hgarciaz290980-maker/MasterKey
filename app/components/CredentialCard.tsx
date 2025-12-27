@@ -65,8 +65,9 @@ export default function CredentialCard({ credential, onPress }: CredentialCardPr
                 <Text style={[styles.accountName, { color: theme.text }]} numberOfLines={1}>
                     {credential.accountName}
                 </Text>
+                {/* Se muestra el Alias en lugar del usuario para mayor privacidad en 'All accounts' */}
                 <Text style={[styles.username, { color: theme.subText }]} numberOfLines={1}>
-                    {credential.username}
+                    {credential.alias || 'Sin alias'}
                 </Text>
             </View>
 

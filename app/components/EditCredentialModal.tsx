@@ -1,230 +1,113 @@
-// app/components/EditCredentialModal.tsx
-
 import React, { useState, useEffect } from 'react';
-import { 
-    Modal, 
-    View, 
-    Text, 
-    StyleSheet, 
-    TextInput, 
-    TouchableOpacity, 
-    KeyboardAvoidingView, 
-    Platform,
-    TouchableWithoutFeedback,
-    Keyboard,
-    ActivityIndicator,
-    Alert // Cambiado alert por Alert de RN para mejor UX
+import {
+    View,
+    Text,
+    StyleSheet,
+    Modal,
+    TextInput,
+    TouchableOpacity,
+    useColorScheme
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-// Props del modal
 interface EditModalProps {
     isVisible: boolean;
     onClose: () => void;
-    onSave: (newValue: string) => Promise<void>; 
-    fieldLabel: string; 
-    initialValue: string | undefined; 
-    isPassword?: boolean; 
+    onSave: (newValue: string) => void;
+    fieldLabel: string;
+    initialValue: string;
+    isPassword?: boolean;
 }
 
-const EditCredentialModal: React.FC<EditModalProps> = ({ 
-    isVisible, 
-    onClose, 
-    onSave, 
-    fieldLabel, 
-    initialValue, 
-    isPassword = false 
-}) => {
-    const [newValue, setNewValue] = useState(initialValue || '');
-    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-    const [isSaving, setIsSaving] = useState(false);
+export default function EditCredentialModal({
+    isVisible,
+    onClose,
+    onSave,
+    fieldLabel,
+    initialValue,
+    isPassword
+}: EditModalProps) {
+    const [value, setValue] = useState(initialValue);
+    const [showPassword, setShowPassword] = useState(false);
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === 'dark';
 
     useEffect(() => {
-        setNewValue(initialValue || '');
-    }, [initialValue, isVisible]); // Se resetea al abrirse
+        setValue(initialValue);
+    }, [initialValue, isVisible]);
 
-    const handleSave = async () => {
-        if (!newValue.trim()) {
-            Alert.alert("Atención", `El campo ${fieldLabel} no puede estar vacío.`);
-            return;
+    // Función para generar contraseña segura dentro del modal
+    const generatePassword = () => {
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+        let retVal = "";
+        for (let i = 0; i < 16; ++i) {
+            retVal += charset.charAt(Math.floor(Math.random() * charset.length));
         }
-        setIsSaving(true);
-        try {
-            await onSave(newValue.trim());
-            onClose(); 
-        } catch (error) {
-            Alert.alert('Error', 'No se pudo actualizar: ' + (error as Error).message);
-        } finally {
-            setIsSaving(false);
-        }
+        setValue(retVal);
+        setShowPassword(true);
     };
 
     return (
-        <Modal
-            animationType="slide" // 'slide' se siente más natural en Android
-            transparent={true}
-            visible={isVisible}
-            onRequestClose={onClose}
-        >
-            <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                <KeyboardAvoidingView
-                    style={styles.centeredView}
-                    behavior={Platform.OS === "ios" ? "padding" : "height"}
-                >
-                    <View style={styles.modalView}>
-                        
-                        <View style={styles.header}>
-                            <Text style={styles.title}>Editar {fieldLabel}</Text>
-                            <TouchableOpacity onPress={onClose} style={styles.closeButton} disabled={isSaving}>
-                                <Ionicons name="close-circle" size={28} color="#6C757D" />
-                            </TouchableOpacity>
-                        </View>
-
-                        <Text style={styles.label}>Nuevo valor para {fieldLabel}:</Text>
-                        
-                        <View style={styles.inputContainer}>
-                            <TextInput
-                                style={styles.input}
-                                onChangeText={setNewValue}
-                                value={newValue}
-                                placeholder={`Ingresa ${fieldLabel}`}
-                                placeholderTextColor="#ADB5BD"
-                                secureTextEntry={isPassword && !isPasswordVisible}
-                                autoCapitalize="none"
-                                editable={!isSaving}
-                                autoFocus={true} // El foco automático ayuda al usuario
-                            />
-                            {isPassword && (
-                                <TouchableOpacity 
-                                    onPress={() => setIsPasswordVisible(!isPasswordVisible)} 
-                                    style={styles.passwordToggle}
-                                >
-                                    <Ionicons 
-                                        name={isPasswordVisible ? 'eye-off' : 'eye'} 
-                                        size={22} 
-                                        color="#6C757D" 
-                                    />
-                                </TouchableOpacity>
-                            )}
-                        </View>
-
-                        <View style={styles.buttonRow}>
-                            <TouchableOpacity 
-                                style={styles.cancelButton} 
-                                onPress={onClose}
-                                disabled={isSaving}
-                            >
-                                <Text style={styles.cancelButtonText}>Cancelar</Text>
-                            </TouchableOpacity>
-
-                            <TouchableOpacity 
-                                style={[styles.saveButton, isSaving && styles.saveButtonDisabled]} 
-                                onPress={handleSave}
-                                disabled={isSaving}
-                            >
-                                {isSaving ? (
-                                    <ActivityIndicator color="#FFFFFF" />
-                                ) : (
-                                    <Text style={styles.saveButtonText}>Guardar</Text>
-                                )}
-                            </TouchableOpacity>
-                        </View>
-
+        <Modal visible={isVisible} transparent animationType="fade">
+            <View style={styles.overlay}>
+                <View style={[styles.modalContainer, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }]}>
+                    <View style={styles.header}>
+                        <Text style={[styles.title, { color: isDark ? '#FFF' : '#212529' }]}>{fieldLabel}</Text>
+                        <TouchableOpacity onPress={onClose}>
+                            <Ionicons name="close-circle" size={28} color="#ADB5BD" />
+                        </TouchableOpacity>
                     </View>
-                </KeyboardAvoidingView>
-            </TouchableWithoutFeedback>
+
+                    {/* Botón de Generar solo si es campo de Password */}
+                    {isPassword && (
+                        <TouchableOpacity onPress={generatePassword} style={styles.generateContainer}>
+                            <Ionicons name="refresh-circle-outline" size={20} color="#007BFF" />
+                            <Text style={styles.generateText}>Generar Contraseña Segura</Text>
+                        </TouchableOpacity>
+                    )}
+
+                    <View style={[styles.inputContainer, { backgroundColor: isDark ? '#2C2C2E' : '#F8F9FA' }]}>
+                        <TextInput
+                            style={[styles.input, { color: isDark ? '#FFF' : '#212529' }]}
+                            value={value}
+                            onChangeText={setValue}
+                            secureTextEntry={isPassword && !showPassword}
+                            autoFocus
+                        />
+                        {isPassword && (
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                                <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#6C757D" />
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    <View style={styles.buttonRow}>
+                        <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
+                            <Text style={styles.cancelButtonText}>Cancelar</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.saveButton} onPress={() => onSave(value)}>
+                            <Text style={styles.saveButtonText}>Guardar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
         </Modal>
     );
-};
+}
 
 const styles = StyleSheet.create({
-    centeredView: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)', // Un poco más oscuro para resaltar el modal
-    },
-    modalView: {
-        width: '85%',
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 20,
-        elevation: 10,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 5 },
-        shadowOpacity: 0.3,
-        shadowRadius: 5,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 15,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: '#212529',
-    },
-    closeButton: {
-        padding: 5,
-    },
-    label: {
-        fontSize: 13,
-        color: '#495057',
-        marginBottom: 10,
-        fontWeight: '500',
-    },
-    inputContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F1F3F5',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#DEE2E6',
-        marginBottom: 20,
-    },
-    input: {
-        flex: 1,
-        height: 50,
-        paddingHorizontal: 15,
-        fontSize: 16,
-        color: '#212529',
-    },
-    passwordToggle: {
-        paddingHorizontal: 15,
-    },
-    buttonRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        gap: 10,
-    },
-    saveButton: {
-        flex: 1,
-        backgroundColor: '#007BFF', // Azul profesional
-        paddingVertical: 12,
-        borderRadius: 10,
-        alignItems: 'center',
-    },
-    cancelButton: {
-        flex: 1,
-        backgroundColor: '#E9ECEF',
-        paddingVertical: 12,
-        borderRadius: 10,
-        alignItems: 'center',
-    },
-    cancelButtonText: {
-        color: '#495057',
-        fontWeight: '600',
-    },
-    saveButtonDisabled: {
-        backgroundColor: '#B0D4FF',
-    },
-    saveButtonText: {
-        color: '#FFFFFF',
-        fontWeight: 'bold',
-        fontSize: 16,
-    },
+    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 25 },
+    modalContainer: { borderRadius: 24, padding: 25, elevation: 10 },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    title: { fontSize: 20, fontWeight: 'bold' },
+    generateContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, alignSelf: 'flex-start' },
+    generateText: { color: '#007BFF', fontWeight: 'bold', marginLeft: 5, fontSize: 14 },
+    inputContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 15, marginBottom: 25 },
+    input: { flex: 1, paddingVertical: 15, fontSize: 16 },
+    eyeIcon: { padding: 5 },
+    buttonRow: { flexDirection: 'row', gap: 12 },
+    cancelButton: { flex: 1, backgroundColor: '#E9ECEF', padding: 15, borderRadius: 12, alignItems: 'center' },
+    cancelButtonText: { color: '#495057', fontWeight: 'bold', fontSize: 16 },
+    saveButton: { flex: 1, backgroundColor: '#007BFF', padding: 15, borderRadius: 12, alignItems: 'center' },
+    saveButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 }
 });
-
-export default EditCredentialModal;

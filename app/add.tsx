@@ -3,198 +3,218 @@ import {
     View, 
     Text, 
     StyleSheet, 
-    ScrollView, 
+    TextInput, 
     TouchableOpacity, 
-    Alert, 
     SafeAreaView, 
-    ActivityIndicator, 
-    useColorScheme, 
-    StatusBar, 
-    Platform 
-} from 'react-native'; 
+    ScrollView, 
+    Alert,
+    useColorScheme 
+} from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { createCredential } from '@/storage/credentials';
 
-// IMPORTACIONES (Mantenemos la estructura de carpetas)
-import InputField from './components/InputField'; 
-import { createCredential, Credential } from '../storage/credentials'; 
+export default function AddCredentialScreen() {
+    const router = useRouter();
+    const colorScheme = useColorScheme();
+    const isDark = colorScheme === 'dark';
 
-export default function AddScreen() {
-  const router = useRouter();
-  const colorScheme = useColorScheme();
-  
-  const isDark = colorScheme === 'dark';
-  const theme = {
-      background: isDark ? '#121212' : '#F8F9FA',
-      text: isDark ? '#F8F9FA' : '#212529',
-      card: isDark ? '#1E1E1E' : '#FFFFFF',
-      subText: isDark ? '#ADB5BD' : '#6C757D',
-      border: isDark ? '#333333' : '#DEE2E6',
-      primary: isDark ? '#3DA9FC' : '#007BFF',
-  };
+    const theme = {
+        background: isDark ? '#121212' : '#F8F9FA',
+        text: isDark ? '#F8F9FA' : '#212529',
+        card: isDark ? '#1E1E1E' : '#FFFFFF',
+        border: isDark ? '#333333' : '#E9ECEF',
+        primary: '#007BFF',
+        placeholder: isDark ? '#666' : '#ADB5BD'
+    };
 
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); 
+    const [accountName, setAccountName] = useState('');
+    const [alias, setAlias] = useState('');
+    const [username, setUsername] = useState('');
+    const [password, setPassword] = useState('');
+    const [websiteUrl, setWebsiteUrl] = useState('');
+    const [notes, setNotes] = useState('');
+    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
-  const [formData, setFormData] = useState<Omit<Credential, 'id'>>({
-      accountName: '',
-      username: '',
-      password: '',
-      recoveryEmail: '',
-      websiteUrl: '',
-      notes: '',
-      category: 'none',
-  });
+    // Función para generar contraseña segura
+    const generateSecurePassword = () => {
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
+        let retVal = "";
+        for (let i = 0; i < 16; ++i) {
+            retVal += charset.charAt(Math.floor(Math.random() * charset.length));
+        }
+        setPassword(retVal);
+        setIsPasswordVisible(true); // La mostramos para que el usuario la vea al generarla
+    };
 
-  const generateSecurePassword = () => {
-    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
-    let password = "";
-    for (let i = 0; i < 16; i++) {
-        password += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setFormData({ ...formData, password: password });
-    setIsPasswordVisible(true);
-  };
+    const handleSave = async () => {
+        if (!accountName || !username || !password) {
+            Alert.alert("Error", "Por favor completa los campos obligatorios");
+            return;
+        }
 
-  const handleSave = async () => {
-    if (!formData.accountName.trim() || !formData.username.trim() || !formData.password.trim()) {
-        Alert.alert("Campos incompletos", "Por favor ingresa nombre, usuario y contraseña.");
-        return;
-    }
+        try {
+            await createCredential({
+                accountName,
+                alias,
+                username,
+                password,
+                websiteUrl,
+                notes,
+                category: 'none'
+            });
 
-    setIsSaving(true); 
-    try {
-        // Log para ver en la terminal de la Mac qué estamos intentando guardar
-        console.log("Intentando guardar credencial...", formData);
-        
-        await createCredential(formData);
-        
-        console.log("¡Guardado exitoso en SecureStore!");
-        Alert.alert("Éxito", "Cuenta guardada correctamente.", [
-            { text: "OK", onPress: () => router.back() }
-        ]);
-    } catch (error: any) {
-        // ESTO ES LO MÁS IMPORTANTE: Ver el error real en la terminal
-        console.error("ERROR AL GUARDAR:", error);
-        Alert.alert("Error de Guardado", `No se pudo guardar: ${error.message || 'Error desconocido'}`);
-    } finally {
-        setIsSaving(false); 
-    }
-  };
+            Alert.alert("Éxito", "Cuenta guardada en Bunker", [
+                { text: "OK", onPress: () => router.back() }
+            ]);
+        } catch (error) {
+            Alert.alert("Error", "No se pudo guardar la cuenta.");
+        }
+    };
 
-  return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
-      <Stack.Screen options={{ 
-          title: "Nueva Credencial",
-          headerStyle: { backgroundColor: theme.background },
-          headerTintColor: theme.text,
-          headerShadowVisible: false,
-      }} />
+    return (
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+            <Stack.Screen options={{ title: "Nueva Cuenta", headerShadowVisible: false }} />
+            <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+                
+                <Text style={[styles.label, { color: theme.text }]}>Nombre de la Cuenta *</Text>
+                <TextInput
+                    style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                    placeholder="Ej: Netflix, Gmail..."
+                    placeholderTextColor={theme.placeholder}
+                    value={accountName}
+                    onChangeText={setAccountName}
+                />
 
-      <ScrollView contentContainerStyle={styles.scrollViewContent} showsVerticalScrollIndicator={false}>
-        <View style={{ height: 20 }} />
-        
-        <Text style={[styles.label, { color: theme.text }]}>Categorizar como:</Text>
-        <View style={styles.categoryContainer}>
-            <TouchableOpacity 
-                style={[styles.catButton, { backgroundColor: theme.card, borderColor: theme.border }, formData.category === 'fav' && styles.catActiveFav]}
-                onPress={() => setFormData({...formData, category: 'fav'})}
-            >
-                <Ionicons name="star" size={18} color={formData.category === 'fav' ? "#FFF" : "#FFC107"} />
-                <Text style={[styles.catText, { color: formData.category === 'fav' ? '#FFF' : theme.text }]}>Favorito</Text>
-            </TouchableOpacity>
+                <Text style={[styles.label, { color: theme.text }]}>Alias (Opcional)</Text>
+                <TextInput
+                    style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                    placeholder="Ej: Personal, Trabajo..."
+                    placeholderTextColor={theme.placeholder}
+                    value={alias}
+                    onChangeText={setAlias}
+                />
 
-            <TouchableOpacity 
-                style={[styles.catButton, { backgroundColor: theme.card, borderColor: theme.border }, formData.category === 'work' && styles.catActiveWork]}
-                onPress={() => setFormData({...formData, category: 'work'})}
-            >
-                <Ionicons name="briefcase" size={18} color={formData.category === 'work' ? "#FFF" : "#6f42c1"} />
-                <Text style={[styles.catText, { color: formData.category === 'work' ? '#FFF' : theme.text }]}>Trabajo</Text>
-            </TouchableOpacity>
+                <Text style={[styles.label, { color: theme.text }]}>Usuario / Correo *</Text>
+                <TextInput
+                    style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                    placeholder="Tu usuario o email"
+                    placeholderTextColor={theme.placeholder}
+                    autoCapitalize="none"
+                    value={username}
+                    onChangeText={setUsername}
+                />
 
-            <TouchableOpacity 
-                style={[styles.catButton, { backgroundColor: theme.card, borderColor: theme.border }, formData.category === 'none' && styles.catActiveNone]}
-                onPress={() => setFormData({...formData, category: 'none'})}
-            >
-                <Text style={[styles.catText, { color: formData.category === 'none' ? '#FFF' : theme.text }]}>General</Text>
-            </TouchableOpacity>
-        </View>
+                <View style={styles.labelContainer}>
+                    <Text style={[styles.label, { color: theme.text }]}>Contraseña *</Text>
+                    <TouchableOpacity onPress={generateSecurePassword}>
+                        <Text style={[styles.generateText, { color: theme.primary }]}>Generar Segura</Text>
+                    </TouchableOpacity>
+                </View>
+                
+                <View style={[styles.passwordContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <TextInput
+                        style={[styles.passwordInput, { color: theme.text }]}
+                        placeholder="Tu contraseña"
+                        placeholderTextColor={theme.placeholder}
+                        secureTextEntry={!isPasswordVisible}
+                        value={password}
+                        onChangeText={setPassword}
+                    />
+                    <TouchableOpacity 
+                        style={styles.eyeIcon} 
+                        onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                    >
+                        <Ionicons 
+                            name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} 
+                            size={22} 
+                            color={theme.placeholder} 
+                        />
+                    </TouchableOpacity>
+                </View>
 
-        <InputField 
-          label="Nombre de la Cuenta"
-          placeholder="Netflix, Gmail..."
-          value={formData.accountName}
-          onChangeText={(text: string) => setFormData({...formData, accountName: text})}
-        />
-        
-        <InputField 
-          label="Usuario"
-          value={formData.username}
-          onChangeText={(text: string) => setFormData({...formData, username: text})}
-        />
-        
-        <View style={styles.passwordContainer}>
-            <InputField 
-                label="Contraseña"
-                secureTextEntry={!isPasswordVisible} 
-                value={formData.password}
-                onChangeText={(text: string) => setFormData({...formData, password: text})}
-            />
-            <View style={styles.actionIcons}>
-                <TouchableOpacity onPress={generateSecurePassword} style={styles.iconAction}>
-                    <Ionicons name="flash" size={20} color="#FFC107" />
+                <Text style={[styles.label, { color: theme.text }]}>URL del Sitio Web</Text>
+                <TextInput
+                    style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                    placeholder="https://..."
+                    placeholderTextColor={theme.placeholder}
+                    autoCapitalize="none"
+                    value={websiteUrl}
+                    onChangeText={setWebsiteUrl}
+                />
+
+                <Text style={[styles.label, { color: theme.text }]}>Notas</Text>
+                <TextInput
+                    style={[styles.input, styles.textArea, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
+                    placeholder="Información adicional..."
+                    placeholderTextColor={theme.placeholder}
+                    multiline
+                    numberOfLines={4}
+                    value={notes}
+                    onChangeText={setNotes}
+                />
+
+                <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.primary }]} onPress={handleSave}>
+                    <Ionicons name="shield-checkmark-outline" size={24} color="#FFF" style={{ marginRight: 10 }} />
+                    <Text style={styles.saveButtonText}>Guardar en Bunker</Text>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={styles.iconAction}>
-                    <Ionicons name={isPasswordVisible ? 'eye-off' : 'eye'} size={20} color={theme.subText} />
-                </TouchableOpacity>
-            </View>
-        </View>
 
-        <InputField 
-          label="URL del Sitio"
-          placeholder="ejemplo.com"
-          value={formData.websiteUrl}
-          onChangeText={(text: string) => setFormData({...formData, websiteUrl: text})}
-        />
-
-        <InputField 
-          label="Nota Personal"
-          multiline={true}
-          numberOfLines={3}
-          value={formData.notes}
-          onChangeText={(text: string) => setFormData({...formData, notes: text})}
-        />
-        
-        <TouchableOpacity 
-            style={[styles.saveButton, { backgroundColor: theme.primary }]} 
-            onPress={handleSave} 
-            disabled={isSaving}
-        >
-            {isSaving ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveButtonText}>Guardar</Text>}
-        </TouchableOpacity>
-        <View style={{ height: 50 }} />
-      </ScrollView>
-    </SafeAreaView>
-  );
+            </ScrollView>
+        </SafeAreaView>
+    );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { 
-    flex: 1, 
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 
-  },
-  scrollViewContent: { paddingHorizontal: 20 },
-  label: { fontSize: 14, fontWeight: '700', marginBottom: 10, textTransform: 'uppercase' },
-  categoryContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-  catButton: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 12, borderWidth: 1, flex: 0.31, justifyContent: 'center' },
-  catActiveFav: { backgroundColor: '#FFC107', borderColor: '#FFC107' },
-  catActiveWork: { backgroundColor: '#6f42c1', borderColor: '#6f42c1' },
-  catActiveNone: { backgroundColor: '#495057', borderColor: '#495057' },
-  catText: { marginLeft: 5, fontSize: 11, fontWeight: 'bold' },
-  passwordContainer: { position: 'relative' },
-  actionIcons: { position: 'absolute', top: 38, right: 5, flexDirection: 'row' },
-  iconAction: { padding: 8 },
-  saveButton: { padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 20 },
-  saveButtonText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
+    safeArea: { flex: 1 },
+    container: { 
+        // Eliminamos flex: 1 de aquí para que el ScrollView funcione correctamente
+        paddingHorizontal: 20, 
+        paddingTop: 60, 
+        paddingBottom: 100, // Más espacio al final para el botón
+    },
+    // Este controla el grupo de "Contraseña" y "Generar Segura"
+    labelContainer: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginTop: 5, 
+        marginBottom: 8 
+    },
+    // Este controla los títulos individuales (Nombre, Alias, etc.)
+    label: { 
+        fontSize: 14, 
+        fontWeight: '700',
+        marginBottom: 8,   // <--- Esto separa el texto de la casilla de abajo
+        marginTop: 10,    // <--- Esto separa el texto del campo de arriba
+    },
+    generateText: { fontSize: 13, fontWeight: '600' },
+    // Casillas normales
+    input: { 
+        padding: 10, 
+        borderRadius: 12, 
+        borderWidth: 1, 
+        fontSize: 16, 
+        marginBottom: 5 // Espacio pequeño porque el margen fuerte lo da el siguiente label
+    },
+    // Casilla de contraseña
+    passwordContainer: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        borderRadius: 12, 
+        borderWidth: 1, 
+        marginBottom: 5 
+    },
+    passwordInput: { flex: 1, padding: 15, fontSize: 16 },
+    eyeIcon: { padding: 10 },
+    textArea: { height: 100, textAlignVertical: 'top' },
+    saveButton: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        padding: 12, 
+        borderRadius: 15, 
+        marginTop: 20, // <--- Más espacio antes del botón final
+        elevation: 3 
+    },
+    saveButtonText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' }
 });

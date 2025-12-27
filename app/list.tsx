@@ -38,15 +38,22 @@ export default function ListScreen() {
     const [filteredData, setFilteredData] = useState<Credential[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
-    const loadData = async () => {
+  const loadData = async () => {
         try {
             const data = await getAllCredentials();
-            let result = data;
+            
+            // 1. Aplicamos el orden alfabético a TODO lo que viene de la base de datos
+            const sortedData = data.sort((a, b) => 
+                a.accountName.toLowerCase().localeCompare(b.accountName.toLowerCase())
+            );
 
+            let result = sortedData;
+
+            // 2. Después de ordenar, filtramos por categoría si es necesario
             if (filter === 'fav') {
-                result = data.filter((c: Credential) => c.category === 'fav');
+                result = sortedData.filter((c: Credential) => c.category === 'fav');
             } else if (filter === 'work') {
-                result = data.filter((c: Credential) => c.category === 'work');
+                result = sortedData.filter((c: Credential) => c.category === 'work');
             }
 
             setAllCredentials(result);

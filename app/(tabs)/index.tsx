@@ -1,23 +1,21 @@
+import * as AuthSession from 'expo-auth-session';
 import React, { useState, useEffect } from 'react'; 
 import { 
-    View, 
-    Text, 
-    StyleSheet, 
-    TouchableOpacity, 
-    SafeAreaView, 
-    ScrollView, 
-    useColorScheme, 
-    StatusBar, 
-    Platform,
-    BackHandler 
+    View, Text, StyleSheet, TouchableOpacity, SafeAreaView, 
+    ScrollView, useColorScheme, Platform
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router'; 
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as WebBrowser from 'expo-web-browser'; 
+import * as Google from 'expo-auth-session/providers/google';
 
 import BackupManager from '../components/BackupManager'; 
 
-let isAppUnlocked = false; 
+WebBrowser.maybeCompleteAuthSession(); 
+
+let isAppUnlocked = false;
 
 export default function DashboardScreen() {
     const router = useRouter();
@@ -34,24 +32,52 @@ export default function DashboardScreen() {
     };
 
     const [isAuthenticated, setIsAuthenticated] = useState(isAppUnlocked);
+    const [userName, setUserName] = useState('Usuario');
+
+   // --- CONFIGURACIÓN PARA BUILD DE DESARROLLO ---
+   const [request, response, promptAsync] = Google.useAuthRequest({
+        androidClientId: "619201497268-vcop7li7m3jdvib2je642d54tmpktkad.apps.googleusercontent.com",
+        iosClientId: "619201497268-tk48sp2maotrqmsef0iidt8n822k0gqm.apps.googleusercontent.com",
+        webClientId: "619201497268-64s3e67clg56f49t0q4hhr8bu3aeithu.apps.googleusercontent.com",
+        scopes: ['https://www.googleapis.com/auth/drive.file'],
+    }, {
+        // Esta línea es la que resuelve el mismatch en builds nativas
+        native: "com.mkpro01.masterkey://google-auth"
+
+
+    });
+
+    useEffect(() => {
+        if (response?.type === 'success') {
+            const { authentication } = response;
+            console.log("✅ Acceso concedido. Token:", authentication?.accessToken);
+        }
+    }, [response]);
+
+    // --- LÓGICA DE INICIO Y SEGURIDAD ---
+    useEffect(() => {
+        const checkSetup = async () => {
+            try {
+                const hasLaunched = await AsyncStorage.getItem('has_launched');
+                const storedName = await AsyncStorage.getItem('user_name');
+                if (!hasLaunched) {
+                    router.replace('/onboarding' as any);
+                } else if (storedName) {
+                    setUserName(storedName);
+                }
+            } catch (e) {
+                console.error("Error cargando configuración", e);
+            }
+        };
+        checkSetup();
+    }, []);
 
     const authenticate = async () => {
         try {
-            const hasHardware = await LocalAuthentication.hasHardwareAsync();
-            const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-
-            if (!hasHardware || !isEnrolled) {
-                isAppUnlocked = true;
-                setIsAuthenticated(true);
-                return;
-            }
-
             const result = await LocalAuthentication.authenticateAsync({
                 promptMessage: 'Acceso a Bunker-K', 
                 fallbackLabel: 'Usar PIN del sistema',
-                disableDeviceFallback: false,
             });
-
             if (result.success) {
                 isAppUnlocked = true;
                 setIsAuthenticated(true);
@@ -61,35 +87,16 @@ export default function DashboardScreen() {
         }
     };
 
-    const handleExitApp = () => {
-        BackHandler.exitApp();
-    };
-
     useEffect(() => {
-        if (!isAppUnlocked) {
-            authenticate();
-        }
+        if (!isAppUnlocked) authenticate();
     }, []); 
 
     if (!isAuthenticated) {
         return (
             <View style={[styles.centered, { backgroundColor: theme.background }]}>
-                <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
                 <Ionicons name="lock-closed" size={100} color={theme.primary} />
-                <Text style={[styles.authTitle, { color: theme.text }]}>Bunker-K Bloqueado</Text>
-                
-                <TouchableOpacity 
-                    style={[styles.authButton, { backgroundColor: theme.primary }]} 
-                    onPress={authenticate}
-                >
-                    <Text style={styles.authButtonText}>Desbloquear con Biometría</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                    style={styles.exitButton} 
-                    onPress={handleExitApp}
-                >
-                    <Text style={[styles.exitButtonText, { color: theme.subText }]}>Salir de la app</Text>
+                <TouchableOpacity style={[styles.authButton, { backgroundColor: theme.primary }]} onPress={authenticate}>
+                    <Text style={styles.authButtonText}>Desbloquear Bunker-K</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -97,54 +104,41 @@ export default function DashboardScreen() {
 
     return (
         <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-            <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
-            <Stack.Screen 
-                options={{ 
-                    title: "Bunker-K", 
-                    headerShown: true,
-                    headerStyle: { backgroundColor: theme.background }, 
-                    headerTintColor: theme.text,
-                    headerShadowVisible: false
-                }} 
-            />
-            
-            <ScrollView 
-                contentContainerStyle={[styles.container, { paddingTop: Platform.OS === 'android' ? 10 : 0 }]}
-                showsVerticalScrollIndicator={false}
-            >
-                <Text style={[styles.welcomeText, { color: theme.text }]}>Hola, Hugo</Text>
-                <Text style={[styles.subtitle, { color: theme.subText }]}>Tus llaves están más seguras en un Bunker.</Text>
-
-                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => router.push('/list?filter=fav')}>
-                    <View style={[styles.iconCircle, { backgroundColor: '#FFC107' }]}><Ionicons name="star" size={25} color="#FFF" /></View>
-                    <View><Text style={[styles.cardTitle, { color: theme.text }]}>Recurrentes</Text></View>
-                    <Ionicons name="chevron-forward" size={24} color="#FFC107" style={styles.arrow} />
+            <Stack.Screen options={{ title: "Bunker-K", headerShown: true, headerShadowVisible: false }} />
+            <ScrollView contentContainerStyle={styles.container}>
+                <Text style={[styles.welcomeText, { color: theme.text }]}>Hola, {userName}</Text>
+                
+                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=fav')}>
+                    <Ionicons name="star" size={25} color="#FFC107" />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}> Recurrentes</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => router.push('/list?filter=work')}>
-                    <View style={[styles.iconCircle, { backgroundColor: '#6f42c1' }]}><Ionicons name="briefcase" size={25} color="#FFF" /></View>
-                    <View><Text style={[styles.cardTitle, { color: theme.text }]}>Trabajo</Text></View>
-                    <Ionicons name="chevron-forward" size={24} color="#6f42c1" style={styles.arrow} />
+                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=work')}>
+                    <Ionicons name="briefcase" size={25} color="#6f42c1" />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}> Trabajo</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => router.push('/list?filter=all')}>
-                    <View style={[styles.iconCircle, { backgroundColor: theme.primary }]}><Ionicons name="key" size={25} color="#FFF" /></View>
-                    <View><Text style={[styles.cardTitle, { color: theme.text }]}>Todas mis cuentas</Text></View>
-                    <Ionicons name="chevron-forward" size={24} color={theme.primary} style={styles.arrow} />
+                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=all')}>
+                    <Ionicons name="key" size={25} color={theme.primary} />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}> Todas mis cuentas</Text>
                 </TouchableOpacity>
 
-                <View style={{ marginTop: 10, paddingBottom: 100 }}>
+                <View style={{ marginTop: 20 }}>
                     <Text style={[styles.sectionTitle, { color: theme.subText }]}>Herramientas</Text>
-                    { BackupManager ? <BackupManager /> : <Text style={{color: theme.subText}}>Cargando herramientas...</Text> }
+                    { BackupManager && <BackupManager /> }
+                    
+                    <TouchableOpacity 
+                        style={[styles.mainCard, { borderStyle: 'dashed', borderWidth: 1, borderColor: theme.primary, marginTop: 10 }]} 
+                        onPress={() => promptAsync()}
+                        disabled={!request}
+                    >
+                        <Ionicons name="cloud-upload" size={20} color={theme.primary} />
+                        <Text style={[styles.cardTitle, { color: theme.text }]}> Vincular Google Drive</Text>
+                    </TouchableOpacity>
                 </View>
-
             </ScrollView>
 
-            <TouchableOpacity 
-                activeOpacity={0.8}
-                style={[styles.fab, { backgroundColor: '#007BFF' }]} 
-                onPress={() => router.push('/add')}
-            >
+            <TouchableOpacity style={[styles.fab, { backgroundColor: theme.primary }]} onPress={() => router.push('/add')}>
                 <Ionicons name="add" size={35} color="#FFF" />
             </TouchableOpacity>
         </SafeAreaView>
@@ -152,20 +146,14 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: 'transparent' },
-    container: { padding: 20, paddingTop: Platform.OS === 'android' ? 80 : 20 },
-    welcomeText: { fontSize: 30, fontWeight: '800' },
-    subtitle: { fontSize: 16, marginBottom: 30 },
-    sectionTitle: { fontSize: 13, fontWeight: '700', marginLeft: 10, marginBottom: 15, textTransform: 'uppercase', letterSpacing: 1 },
-    mainCard: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 18, marginBottom: 15, borderWidth: 1, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
-    iconCircle: { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
-    cardTitle: { fontSize: 18, fontWeight: '700' },
-    arrow: { position: 'absolute', right: 20 },
-    fab: { position: 'absolute', bottom: 70, right: 25, width: 55, height: 55, borderRadius: 32.5, justifyContent: 'center', alignItems: 'center', elevation: 10, shadowColor: '#000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.3, shadowRadius: 5 },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-    authTitle: { fontSize: 22, fontWeight: 'bold', marginTop: 20 },
-    authButton: { marginTop: 30, paddingVertical: 15, paddingHorizontal: 40, borderRadius: 15, width: '100%', alignItems: 'center' },
-    authButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
-    exitButton: { marginTop: 20, padding: 10 },
-    exitButtonText: { fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' }
+    safeArea: { flex: 1 },
+    container: { padding: 20 },
+    welcomeText: { fontSize: 28, fontWeight: '800', marginBottom: 20 },
+    mainCard: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 15, marginBottom: 15, elevation: 2 },
+    cardTitle: { fontSize: 18, fontWeight: '600', marginLeft: 10 },
+    sectionTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 10 },
+    fab: { position: 'absolute', bottom: 30, right: 25, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    authButton: { marginTop: 20, padding: 15, borderRadius: 10 },
+    authButtonText: { color: '#FFF', fontWeight: 'bold' }
 });

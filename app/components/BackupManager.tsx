@@ -5,7 +5,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 
-// CORRECCIÓN: Usamos getAllCredentials y saveAllCredentials según tus capturas
+// Mantenemos tus funciones originales de almacenamiento
 import { getAllCredentials, saveAllCredentials } from '../../storage/credentials'; 
 
 export default function BackupManager() {
@@ -44,10 +44,7 @@ export default function BackupManager() {
             const importedData = JSON.parse(fileContent);
 
             if (Array.isArray(importedData)) {
-                // Obtenemos las que ya tienes para no borrarlas
                 const currentData = await getAllCredentials();
-                
-                // Combinamos las actuales con las nuevas (Importante: esto evita duplicados si tienen el mismo ID)
                 const combinedData = [...currentData];
                 
                 importedData.forEach(newCred => {
@@ -55,9 +52,7 @@ export default function BackupManager() {
                     if (!exists) combinedData.push(newCred);
                 });
 
-                // Guardamos la lista completa usando tu función saveAllCredentials
                 await saveAllCredentials(combinedData);
-                
                 Alert.alert("Éxito", `Importación completada. Se añadieron las cuentas nuevas.`);
             } else {
                 Alert.alert("Error", "El archivo no tiene el formato correcto.");
@@ -69,27 +64,50 @@ export default function BackupManager() {
 
     return (
         <View style={styles.container}>
-            <TouchableOpacity 
-                style={[styles.button, { backgroundColor: isDark ? '#1E1E1E' : '#FFF', borderColor: isDark ? '#333' : '#EEE' }]} 
-                onPress={handleExport}
-            >
-                <Ionicons name="cloud-upload-outline" size={22} color="#007BFF" />
-                <Text style={[styles.text, { color: isDark ? '#FFF' : '#333' }]}>Exportar Respaldo</Text>
-            </TouchableOpacity>
+            {/* Contenedor de fila para ponerlos uno al lado del otro */}
+            <View style={styles.row}>
+                <TouchableOpacity 
+                    style={[styles.button, { backgroundColor: isDark ? '#1E1E1E' : '#FFF', borderColor: isDark ? '#333' : '#EEE' }]} 
+                    onPress={handleExport}
+                >
+                    <Ionicons name="cloud-upload-outline" size={20} color="#007BFF" />
+                    <Text style={[styles.text, { color: isDark ? '#FFF' : '#333' }]}>Exportar</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity 
-                style={[styles.button, { backgroundColor: isDark ? '#1E1E1E' : '#FFF', borderColor: isDark ? '#333' : '#EEE', marginTop: 12 }]} 
-                onPress={handleImport}
-            >
-                <Ionicons name="cloud-download-outline" size={22} color="#28A745" />
-                <Text style={[styles.text, { color: isDark ? '#FFF' : '#333' }]}>Importar Respaldo</Text>
-            </TouchableOpacity>
+                <TouchableOpacity 
+                    style={[styles.button, { backgroundColor: isDark ? '#1E1E1E' : '#FFF', borderColor: isDark ? '#333' : '#EEE' }]} 
+                    onPress={handleImport}
+                >
+                    <Ionicons name="cloud-download-outline" size={20} color="#28A745" />
+                    <Text style={[styles.text, { color: isDark ? '#FFF' : '#333' }]}>Importar</Text>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { marginTop: 10 },
-    button: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 14, borderWidth: 1, marginHorizontal: 5 },
-    text: { marginLeft: 15, fontSize: 16, fontWeight: '700' },
+    container: { 
+        marginTop: 5,
+        width: '100%' 
+    },
+    row: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between',
+        alignItems: 'center'
+    },
+    button: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        paddingVertical: 15, 
+        borderRadius: 14, 
+        borderWidth: 1, 
+        width: '48%', // Esto garantiza que quepan dos en la misma línea
+    },
+    text: { 
+        marginLeft: 8, 
+        fontSize: 14, // Ajustamos un poco el tamaño para que quepa bien en teléfonos pequeños
+        fontWeight: '700' 
+    },
 });

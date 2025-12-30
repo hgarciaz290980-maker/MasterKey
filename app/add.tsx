@@ -1,220 +1,194 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
     View, 
     Text, 
     StyleSheet, 
-    TextInput, 
-    TouchableOpacity, 
+    FlatList, 
     SafeAreaView, 
-    ScrollView, 
-    Alert,
+    TextInput, 
+    TouchableOpacity,
+    Platform,
     useColorScheme 
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { createCredential } from '@/storage/credentials';
 
-export default function AddCredentialScreen() {
+// Importaciones de lógica
+import { getAllCredentials, Credential } from '../storage/credentials';
+import CredentialCard from './components/CredentialCard'; 
+
+export default function ListScreen() {
     const router = useRouter();
+    const { filter } = useLocalSearchParams<{ filter: string }>();
     const colorScheme = useColorScheme();
+    
+    // Diccionario de colores integrado
     const isDark = colorScheme === 'dark';
-
     const theme = {
         background: isDark ? '#121212' : '#F8F9FA',
         text: isDark ? '#F8F9FA' : '#212529',
         card: isDark ? '#1E1E1E' : '#FFFFFF',
+        subText: isDark ? '#ADB5BD' : '#6C757D',
         border: isDark ? '#333333' : '#E9ECEF',
-        primary: '#007BFF',
-        placeholder: isDark ? '#666' : '#ADB5BD'
+        primary: isDark ? '#3DA9FC' : '#007BFF',
+        input: isDark ? '#2C2C2C' : '#FFFFFF'
     };
+    
+    const [allCredentials, setAllCredentials] = useState<Credential[]>([]);
+    const [filteredData, setFilteredData] = useState<Credential[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
 
-    const [accountName, setAccountName] = useState('');
-    const [alias, setAlias] = useState('');
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [websiteUrl, setWebsiteUrl] = useState('');
-    const [notes, setNotes] = useState('');
-    const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-
-    // Función para generar contraseña segura
-    const generateSecurePassword = () => {
-        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
-        let retVal = "";
-        for (let i = 0; i < 16; ++i) {
-            retVal += charset.charAt(Math.floor(Math.random() * charset.length));
-        }
-        setPassword(retVal);
-        setIsPasswordVisible(true); // La mostramos para que el usuario la vea al generarla
-    };
-
-    const handleSave = async () => {
-        if (!accountName || !username || !password) {
-            Alert.alert("Error", "Por favor completa los campos obligatorios");
-            return;
-        }
-
+    const loadData = async () => {
         try {
-            await createCredential({
-                accountName,
-                alias,
-                username,
-                password,
-                websiteUrl,
-                notes,
-                category: 'none'
-            });
+            const data = await getAllCredentials();
+            
+            // 1. Aplicamos el orden alfabético a TODO
+            const sortedData = data.sort((a, b) => 
+                a.accountName.toLowerCase().localeCompare(b.accountName.toLowerCase())
+            );
 
-            Alert.alert("Éxito", "Cuenta guardada en Bunker", [
-                { text: "OK", onPress: () => router.back() }
-            ]);
+            let result = sortedData;
+
+            // 2. FILTRADO DINÁMICO: Corregido para aceptar todas las categorías nuevas
+            // Si el filtro no es 'all', filtramos estrictamente por el ID de categoría
+            if (filter && filter !== 'all') {
+                result = sortedData.filter((c: Credential) => c.category === filter);
+            }
+
+            setAllCredentials(result);
+            setFilteredData(result);
         } catch (error) {
-            Alert.alert("Error", "No se pudo guardar la cuenta.");
+            console.error("Error al cargar datos en la lista:", error);
         }
+    };
+
+    useFocusEffect(
+        useCallback(() => {
+            loadData();
+        }, [filter])
+    );
+
+    const handleSearch = (text: string) => {
+        setSearchQuery(text);
+        if (text.trim() === '') {
+            setFilteredData(allCredentials);
+        } else {
+            const filtered = allCredentials.filter(item => 
+                item.accountName.toLowerCase().includes(text.toLowerCase()) ||
+                item.username.toLowerCase().includes(text.toLowerCase())
+            );
+            setFilteredData(filtered);
+        }
+    };
+
+    const getTitle = () => {
+        // Mapeo de IDs a nombres legibles para la cabecera
+        const titles: Record<string, string> = {
+            fav: "Recurrentes",
+            work: "Trabajo",
+            personal: "Personal",
+            pet: "Mascota",
+            mobility: "Movilidad",
+            entertainment: "Entretenimiento",
+            all: "Todas mis cuentas"
+        };
+        return titles[filter || 'all'] || "Bunker-K";
     };
 
     return (
         <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-            <Stack.Screen options={{ title: "Nueva Cuenta", headerShadowVisible: false }} />
-            <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-                
-                <Text style={[styles.label, { color: theme.text }]}>Nombre de la Cuenta *</Text>
-                <TextInput
-                    style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                    placeholder="Ej: Netflix, Gmail..."
-                    placeholderTextColor={theme.placeholder}
-                    value={accountName}
-                    onChangeText={setAccountName}
-                />
-
-                <Text style={[styles.label, { color: theme.text }]}>Alias (Opcional)</Text>
-                <TextInput
-                    style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                    placeholder="Ej: Personal, Trabajo..."
-                    placeholderTextColor={theme.placeholder}
-                    value={alias}
-                    onChangeText={setAlias}
-                />
-
-                <Text style={[styles.label, { color: theme.text }]}>Usuario / Correo *</Text>
-                <TextInput
-                    style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                    placeholder="Tu usuario o email"
-                    placeholderTextColor={theme.placeholder}
-                    autoCapitalize="none"
-                    value={username}
-                    onChangeText={setUsername}
-                />
-
-                <View style={styles.labelContainer}>
-                    <Text style={[styles.label, { color: theme.text }]}>Contraseña *</Text>
-                    <TouchableOpacity onPress={generateSecurePassword}>
-                        <Text style={[styles.generateText, { color: theme.primary }]}>Generar Segura</Text>
-                    </TouchableOpacity>
-                </View>
-                
-                <View style={[styles.passwordContainer, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                    <TextInput
-                        style={[styles.passwordInput, { color: theme.text }]}
-                        placeholder="Tu contraseña"
-                        placeholderTextColor={theme.placeholder}
-                        secureTextEntry={!isPasswordVisible}
-                        value={password}
-                        onChangeText={setPassword}
+            <Stack.Screen options={{ 
+                title: getTitle(),
+                headerShown: true,
+                headerStyle: { backgroundColor: theme.background },
+                headerTintColor: theme.text,
+            }} />
+            
+            <View style={styles.mainContainer}>
+                {/* BUSCADOR */}
+                <View style={[styles.searchBar, { backgroundColor: theme.input, borderColor: theme.border }]}>
+                    <Ionicons name="search" size={20} color={theme.subText} style={{ marginRight: 10 }} />
+                    <TextInput 
+                        placeholder="Buscar cuenta..." 
+                        placeholderTextColor={theme.subText}
+                        style={[styles.searchInput, { color: theme.text }]}
+                        value={searchQuery}
+                        onChangeText={handleSearch}
+                        autoCapitalize="none"
                     />
-                    <TouchableOpacity 
-                        style={styles.eyeIcon} 
-                        onPress={() => setIsPasswordVisible(!isPasswordVisible)}
-                    >
-                        <Ionicons 
-                            name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} 
-                            size={22} 
-                            color={theme.placeholder} 
-                        />
-                    </TouchableOpacity>
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => handleSearch('')}>
+                            <Ionicons name="close-circle" size={20} color={theme.subText} />
+                        </TouchableOpacity>
+                    )}
                 </View>
 
-                <Text style={[styles.label, { color: theme.text }]}>URL del Sitio Web</Text>
-                <TextInput
-                    style={[styles.input, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                    placeholder="https://..."
-                    placeholderTextColor={theme.placeholder}
-                    autoCapitalize="none"
-                    value={websiteUrl}
-                    onChangeText={setWebsiteUrl}
+                {/* LISTADO */}
+                <FlatList 
+                    data={filteredData}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => (
+                        <CredentialCard 
+                            credential={item} 
+                            onPress={() => router.push(`/details/${item.id}`)} 
+                        />
+                    )}
+                    contentContainerStyle={styles.listContent}
+                    ListEmptyComponent={
+                        <View style={styles.emptyState}>
+                            <Ionicons name="document-text-outline" size={60} color={theme.border} />
+                            <Text style={[styles.emptyText, { color: theme.subText }]}>No hay cuentas aquí.</Text>
+                        </View>
+                    }
                 />
+            </View>
 
-                <Text style={[styles.label, { color: theme.text }]}>Notas</Text>
-                <TextInput
-                    style={[styles.input, styles.textArea, { backgroundColor: theme.card, color: theme.text, borderColor: theme.border }]}
-                    placeholder="Información adicional..."
-                    placeholderTextColor={theme.placeholder}
-                    multiline
-                    numberOfLines={4}
-                    value={notes}
-                    onChangeText={setNotes}
-                />
-
-                <TouchableOpacity style={[styles.saveButton, { backgroundColor: theme.primary }]} onPress={handleSave}>
-                    <Ionicons name="shield-checkmark-outline" size={24} color="#FFF" style={{ marginRight: 10 }} />
-                    <Text style={styles.saveButtonText}>Guardar en Bunker</Text>
-                </TouchableOpacity>
-
-            </ScrollView>
+            <TouchableOpacity 
+                style={[styles.fab, { backgroundColor: '#007BFF' }]} 
+                onPress={() => router.push('/add')}
+            >
+                <Ionicons name="add" size={35} color="#FFF" />
+            </TouchableOpacity>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     safeArea: { flex: 1 },
-    container: { 
-        // Eliminamos flex: 1 de aquí para que el ScrollView funcione correctamente
-        paddingHorizontal: 20, 
-        paddingTop: 60, 
-        paddingBottom: 100, // Más espacio al final para el botón
+    mainContainer: { 
+        flex: 1, 
+        paddingHorizontal: 12,
+        paddingTop: Platform.OS === 'android' ? 55 : 65, 
+        paddingBottom: Platform.OS === 'android' ? 50 : 40,
     },
-    // Este controla el grupo de "Contraseña" y "Generar Segura"
-    labelContainer: { 
-        flexDirection: 'row', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginTop: 5, 
-        marginBottom: 8 
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 15,
+        height: 55,
+        borderRadius: 14,
+        marginBottom: 15,
+        marginHorizontal: 5,
+        borderWidth: 1,
+        elevation: 2,
     },
-    // Este controla los títulos individuales (Nombre, Alias, etc.)
-    label: { 
-        fontSize: 14, 
-        fontWeight: '700',
-        marginBottom: 8,   // <--- Esto separa el texto de la casilla de abajo
-        marginTop: 10,    // <--- Esto separa el texto del campo de arriba
-    },
-    generateText: { fontSize: 13, fontWeight: '600' },
-    // Casillas normales
-    input: { 
-        padding: 10, 
-        borderRadius: 12, 
-        borderWidth: 1, 
-        fontSize: 16, 
-        marginBottom: 5 // Espacio pequeño porque el margen fuerte lo da el siguiente label
-    },
-    // Casilla de contraseña
-    passwordContainer: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        borderRadius: 12, 
-        borderWidth: 1, 
-        marginBottom: 5 
-    },
-    passwordInput: { flex: 1, padding: 15, fontSize: 16 },
-    eyeIcon: { padding: 10 },
-    textArea: { height: 100, textAlignVertical: 'top' },
-    saveButton: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
+    searchInput: { flex: 1, fontSize: 16 },
+    listContent: { paddingBottom: 130 },
+    emptyState: { alignItems: 'center', marginTop: 50 },
+    emptyText: { fontSize: 16 },
+    fab: { 
+        position: 'absolute', 
+        bottom: 70, 
+        right: 25, 
+        width: 55, 
+        height: 55, 
+        borderRadius: 32.5, 
         justifyContent: 'center', 
-        padding: 12, 
-        borderRadius: 15, 
-        marginTop: 20, // <--- Más espacio antes del botón final
-        elevation: 3 
+        alignItems: 'center', 
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 5 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
     },
-    saveButtonText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' }
 });

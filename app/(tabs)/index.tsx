@@ -41,10 +41,7 @@ export default function DashboardScreen() {
         webClientId: "619201497268-64s3e67clg56f49t0q4hhr8bu3aeithu.apps.googleusercontent.com",
         scopes: ['https://www.googleapis.com/auth/drive.file'],
     }, {
-        // Esta línea es la que resuelve el mismatch en builds nativas
         native: "com.mkpro01.masterkey://google-auth"
-
-
     });
 
     useEffect(() => {
@@ -54,7 +51,6 @@ export default function DashboardScreen() {
         }
     }, [response]);
 
-    // --- LÓGICA DE INICIO Y SEGURIDAD ---
     useEffect(() => {
         const checkSetup = async () => {
             try {
@@ -104,13 +100,40 @@ export default function DashboardScreen() {
 
     return (
         <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-            <Stack.Screen options={{ title: "Bunker-K", headerShown: true, headerShadowVisible: false }} />
+            <Stack.Screen 
+                options={{ 
+                    title: "Bunker-K", 
+                    headerShown: true, 
+                    headerShadowVisible: false,
+                    headerStyle: { 
+                        backgroundColor: theme.background, 
+                    },
+                    headerTitleStyle: {
+                        color: theme.text, 
+                        fontWeight: 'bold',
+                    },
+                    headerTintColor: theme.text, 
+                }} 
+            />
             <ScrollView contentContainerStyle={styles.container}>
-                <Text style={[styles.welcomeText, { color: theme.text }]}>Hola, {userName}</Text>
                 
+                {/* SALUDO Y CAMPANITA */}
+                <View style={styles.headerRow}>
+                    <Text style={[styles.welcomeText, { color: theme.text }]}>Hola, {userName}</Text>
+                    <TouchableOpacity onPress={() => alert('Centro de notificaciones próximamente')}>
+                        <Ionicons name="notifications-outline" size={28} color={theme.text} />
+                    </TouchableOpacity>
+                </View>
+                
+                {/* CATEGORÍAS */}
                 <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=fav')}>
                     <Ionicons name="star" size={25} color="#FFC107" />
                     <Text style={[styles.cardTitle, { color: theme.text }]}> Recurrentes</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=personal')}>
+                    <Ionicons name="person" size={25} color="#20c997" />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}> Personal</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=work')}>
@@ -118,27 +141,54 @@ export default function DashboardScreen() {
                     <Text style={[styles.cardTitle, { color: theme.text }]}> Trabajo</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=all')}>
+                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=pet')}>
+                    <Ionicons name="paw" size={25} color="#fd7e14" />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}> Mascota</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=mobility')}>
+                    <Ionicons name="car-sport" size={25} color="#dc3545" />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}> Movilidad</Text>
+                </TouchableOpacity>
+
+                {/* --- NUEVA TARJETA: ENTRETENIMIENTO --- */}
+                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=entertainment')}>
+                    <Ionicons name="play-circle" size={25} color="#e83e8c" />
+                    <Text style={[styles.cardTitle, { color: theme.text }]}> Entretenimiento</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, marginBottom: 30 }]} onPress={() => router.push('/list?filter=all')}>
                     <Ionicons name="key" size={25} color={theme.primary} />
                     <Text style={[styles.cardTitle, { color: theme.text }]}> Todas mis cuentas</Text>
                 </TouchableOpacity>
 
-                <View style={{ marginTop: 20 }}>
+                {/* SECCIÓN HERRAMIENTAS */}
+                <View style={{ marginTop: -15 }}>
                     <Text style={[styles.sectionTitle, { color: theme.subText }]}>Herramientas</Text>
-                    { BackupManager && <BackupManager /> }
+                    
+                    <View style={styles.toolsRow}>
+                        { BackupManager && <BackupManager /> }
+                    </View>
                     
                     <TouchableOpacity 
-                        style={[styles.mainCard, { borderStyle: 'dashed', borderWidth: 1, borderColor: theme.primary, marginTop: 10 }]} 
+                        style={[styles.googleCard, { borderColor: theme.primary }]} 
                         onPress={() => promptAsync()}
                         disabled={!request}
                     >
                         <Ionicons name="cloud-upload" size={20} color={theme.primary} />
-                        <Text style={[styles.cardTitle, { color: theme.text }]}> Vincular Google Drive</Text>
+                        <Text style={[styles.googleText, { color: theme.text }]}> Vincular Google Drive</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
 
-            <TouchableOpacity style={[styles.fab, { backgroundColor: theme.primary }]} onPress={() => router.push('/add')}>
+            {/* BOTÓN FLOTANTE: CORRECCIÓN DE RUTA */}
+            <TouchableOpacity 
+                style={[styles.fab, { backgroundColor: theme.primary }]} 
+               onPress={() => {
+    console.log("EL BOTÓN FUNCIONA");
+    router.push('/add');
+}}
+            >
                 <Ionicons name="add" size={35} color="#FFF" />
             </TouchableOpacity>
         </SafeAreaView>
@@ -148,11 +198,51 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
     safeArea: { flex: 1 },
     container: { padding: 20 },
-    welcomeText: { fontSize: 28, fontWeight: '800', marginBottom: 20 },
-    mainCard: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 15, marginBottom: 15, elevation: 2 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    welcomeText: { fontSize: 28, fontWeight: '800' },
+    mainCard: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        padding: 15, 
+        borderRadius: 15, 
+        marginBottom: 15, 
+        elevation: 2,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3
+    },
     cardTitle: { fontSize: 18, fontWeight: '600', marginLeft: 10 },
-    sectionTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 10 },
-    fab: { position: 'absolute', bottom: 30, right: 25, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
+    sectionTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 15 },
+    toolsRow: {
+        marginBottom: 10
+    },
+    googleCard: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        padding: 15, 
+        borderRadius: 15, 
+        borderStyle: 'dashed', 
+        borderWidth: 1, 
+        marginTop: 5 
+    },
+    googleText: { fontSize: 16, fontWeight: '600', marginLeft: 10 },
+    fab: { 
+        position: 'absolute', 
+        bottom: 20, 
+        right: 25, 
+        width: 60, 
+        height: 60, 
+        borderRadius: 30, 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        elevation: 8,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 4.65,
+    },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     authButton: { marginTop: 20, padding: 15, borderRadius: 10 },
     authButtonText: { color: '#FFF', fontWeight: 'bold' }

@@ -12,7 +12,7 @@ export interface Credential {
     recoveryEmail?: string;
     websiteUrl?: string;
     notes?: string;
-    category?: 'fav' | 'work' | 'none'; 
+    category: 'fav' | 'work' | 'personal' | 'pet' | 'mobility' | 'entertainment' | 'none'; 
 }
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);

@@ -42,18 +42,16 @@ export default function ListScreen() {
         try {
             const data = await getAllCredentials();
             
-            // 1. Aplicamos el orden alfabético a TODO lo que viene de la base de datos
+            // 1. Aplicamos el orden alfabético
             const sortedData = data.sort((a, b) => 
                 a.accountName.toLowerCase().localeCompare(b.accountName.toLowerCase())
             );
 
             let result = sortedData;
 
-            // 2. Después de ordenar, filtramos por categoría si es necesario
-            if (filter === 'fav') {
-                result = sortedData.filter((c: Credential) => c.category === 'fav');
-            } else if (filter === 'work') {
-                result = sortedData.filter((c: Credential) => c.category === 'work');
+            // 2. Filtro dinámico: Si el filtro no es 'all', filtramos por la categoría recibida
+            if (filter && filter !== 'all') {
+                result = sortedData.filter((c: Credential) => c.category === filter);
             }
 
             setAllCredentials(result);
@@ -83,9 +81,16 @@ export default function ListScreen() {
     };
 
     const getTitle = () => {
-        if (filter === 'fav') return "Favoritos";
-        if (filter === 'work') return "Trabajo";
-        return "Todas mis Cuentas";
+        // Títulos personalizados según el filtro
+        const titles: Record<string, string> = {
+            fav: "Recurrentes",
+            work: "Trabajo",
+            personal: "Personal",
+            pet: "Mascota",
+            mobility: "Movilidad",
+            entertainment: "Entretenimiento"
+        };
+        return titles[filter as string] || "Todas mis Cuentas";
     };
 
     return (
@@ -136,11 +141,24 @@ export default function ListScreen() {
                 />
             </View>
 
+            {/* BOTÓN FLOTANTE CORREGIDO */}
+            {/* BOTÓN CON COLOR CORREGIDO Y FORZADO */}
             <TouchableOpacity 
-                style={[styles.fab, { backgroundColor: '#007BFF' }]} 
-                onPress={() => router.push('/add')}
+                style={[
+                    styles.fab, 
+                    { 
+                        backgroundColor: '#007BFF', // Azul directo
+                        zIndex: 9999, 
+                        borderWidth: 0 // Aseguramos que no tenga bordes raros
+                    }
+                ]}
+                onPress={() => {
+                    console.log("Navegando al formulario de agregar...");
+                    router.push('/add'); 
+                }}
+                activeOpacity={0.8}
             >
-                <Ionicons name="add" size={35} color="#FFF" />
+                <Ionicons name="add" size={40} color="#FFFFFF" />
             </TouchableOpacity>
         </SafeAreaView>
     );
@@ -151,8 +169,8 @@ const styles = StyleSheet.create({
     mainContainer: { 
         flex: 1, 
         paddingHorizontal: 12,
-        paddingTop: Platform.OS === 'android' ? 55 : 65, 
-        paddingBottom: Platform.OS === 'android' ? 50 : 40,
+        // Reducimos el padding para que no empuje el contenido hacia abajo
+        paddingTop: Platform.OS === 'android' ? 10 : 10, 
     },
     searchBar: {
         flexDirection: 'row',
@@ -160,28 +178,31 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         height: 55,
         borderRadius: 14,
+        marginTop: 10,
         marginBottom: 15,
         marginHorizontal: 5,
         borderWidth: 1,
         elevation: 2,
     },
     searchInput: { flex: 1, fontSize: 16 },
-    listContent: { paddingBottom: 130 },
+    // Aumentamos el espacio al final de la lista para que el último item no tape al botón
+    listContent: { paddingBottom: 120 }, 
     emptyState: { alignItems: 'center', marginTop: 50 },
     emptyText: { fontSize: 16 },
     fab: { 
         position: 'absolute', 
-        bottom: 70, 
+        bottom: 30, // Lo subimos para que esté visible sobre la barra de navegación
         right: 25, 
-        width: 55, 
-        height: 55, 
+        width: 65, 
+        height: 65, 
         borderRadius: 32.5, 
         justifyContent: 'center', 
         alignItems: 'center', 
-        elevation: 10,
-        shadowColor: '#000',
+        elevation: 10, // Sombra para Android
+        shadowColor: '#000', // Sombra para iOS
         shadowOffset: { width: 0, height: 5 },
         shadowOpacity: 0.3,
         shadowRadius: 5,
+        zIndex: 9999, // Super importante para que no se quede atrás
     },
-}); // <-- Esta era la llave que faltaba cerrando el StyleSheet
+});

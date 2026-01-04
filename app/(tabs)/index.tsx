@@ -34,7 +34,6 @@ export default function DashboardScreen() {
     const [isAuthenticated, setIsAuthenticated] = useState(isAppUnlocked);
     const [userName, setUserName] = useState('Usuario');
 
-   // --- CONFIGURACIÓN PARA BUILD DE DESARROLLO ---
    const [request, response, promptAsync] = Google.useAuthRequest({
         androidClientId: "619201497268-vcop7li7m3jdvib2je642d54tmpktkad.apps.googleusercontent.com",
         iosClientId: "619201497268-tk48sp2maotrqmsef0iidt8n822k0gqm.apps.googleusercontent.com",
@@ -105,19 +104,13 @@ export default function DashboardScreen() {
                     title: "Bunker-K", 
                     headerShown: true, 
                     headerShadowVisible: false,
-                    headerStyle: { 
-                        backgroundColor: theme.background, 
-                    },
-                    headerTitleStyle: {
-                        color: theme.text, 
-                        fontWeight: 'bold',
-                    },
+                    headerStyle: { backgroundColor: theme.background },
+                    headerTitleStyle: { color: theme.text, fontWeight: 'bold' },
                     headerTintColor: theme.text, 
                 }} 
             />
             <ScrollView contentContainerStyle={styles.container}>
                 
-                {/* SALUDO Y CAMPANITA */}
                 <View style={styles.headerRow}>
                     <Text style={[styles.welcomeText, { color: theme.text }]}>Hola, {userName}</Text>
                     <TouchableOpacity onPress={() => alert('Centro de notificaciones próximamente')}>
@@ -151,7 +144,6 @@ export default function DashboardScreen() {
                     <Text style={[styles.cardTitle, { color: theme.text }]}> Movilidad</Text>
                 </TouchableOpacity>
 
-                {/* --- NUEVA TARJETA: ENTRETENIMIENTO --- */}
                 <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=entertainment')}>
                     <Ionicons name="play-circle" size={25} color="#e83e8c" />
                     <Text style={[styles.cardTitle, { color: theme.text }]}> Entretenimiento</Text>
@@ -162,14 +154,11 @@ export default function DashboardScreen() {
                     <Text style={[styles.cardTitle, { color: theme.text }]}> Todas mis cuentas</Text>
                 </TouchableOpacity>
 
-                {/* SECCIÓN HERRAMIENTAS */}
                 <View style={{ marginTop: -15 }}>
                     <Text style={[styles.sectionTitle, { color: theme.subText }]}>Herramientas</Text>
-                    
                     <View style={styles.toolsRow}>
                         { BackupManager && <BackupManager /> }
                     </View>
-                    
                     <TouchableOpacity 
                         style={[styles.googleCard, { borderColor: theme.primary }]} 
                         onPress={() => promptAsync()}
@@ -181,13 +170,10 @@ export default function DashboardScreen() {
                 </View>
             </ScrollView>
 
-            {/* BOTÓN FLOTANTE: CORRECCIÓN DE RUTA */}
+            {/* BOTÓN FLOTANTE CORREGIDO SIN EL PUNTO */}
             <TouchableOpacity 
                 style={[styles.fab, { backgroundColor: theme.primary }]} 
-               onPress={() => {
-    console.log("EL BOTÓN FUNCIONA");
-    router.push('/add');
-}}
+                onPress={() => router.push('/add')}
             >
                 <Ionicons name="add" size={35} color="#FFF" />
             </TouchableOpacity>
@@ -214,9 +200,7 @@ const styles = StyleSheet.create({
     },
     cardTitle: { fontSize: 18, fontWeight: '600', marginLeft: 10 },
     sectionTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 15 },
-    toolsRow: {
-        marginBottom: 10
-    },
+    toolsRow: { marginBottom: 10 },
     googleCard: { 
         flexDirection: 'row', 
         alignItems: 'center', 

@@ -12,7 +12,11 @@ export interface Credential {
     recoveryEmail?: string;
     websiteUrl?: string;
     notes?: string;
-    category: 'fav' | 'work' | 'personal' | 'pet' | 'mobility' | 'entertainment' | 'none'; 
+    category: 'fav' | 'work' | 'personal' | 'pet' | 'mobility' | 'entertainment'; 
+    // AGREGAR ESTOS TRES CAMPOS:
+    hasReminder?: boolean;
+    reminderDate?: string;
+    reminderNote?: string;
 }
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);

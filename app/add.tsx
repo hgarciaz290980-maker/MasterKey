@@ -6,18 +6,22 @@ import {
 import { useRouter, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createCredential, Credential } from '../storage/credentials';
+// IMPORTACIÓN DEL NUEVO FORMULARIO
+import SpecialCategoryForm from './components/SpecialCategoryForm';
 
 export default function AddCredentialScreen() {
     const router = useRouter();
     
-    // 1. Añadimos el estado para el alias
     const [accountName, setAccountName] = useState('');
-    const [alias, setAlias] = useState(''); // <-- NUEVO
+    const [alias, setAlias] = useState('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [websiteUrl, setWebsiteUrl] = useState('');
     const [notes, setNotes] = useState('');
     const [category, setCategory] = useState<Credential['category']>('personal');
+    
+    // ESTADO PARA CAMPOS ESPECIALES (Mascotas/Movilidad)
+    const [specialData, setSpecialData] = useState<any>({});
     
     const [showPassword, setShowPassword] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
@@ -38,22 +42,27 @@ export default function AddCredentialScreen() {
         setPassword(res);
     };
 
+    // Función para actualizar datos especiales
+    const handleSpecialChange = (field: string, value: string) => {
+        setSpecialData((prev: any) => ({ ...prev, [field]: value }));
+    };
+
     const handleSave = async () => {
-        if (!accountName || !username || !password) {
-            Alert.alert("Error", "Los campos con * son obligatorios");
+        if (!accountName) {
+            Alert.alert("Error", "El nombre de la cuenta es obligatorio");
             return;
         }
 
         try {
-            // 2. Pasamos el alias real a la función de guardado
             await createCredential({
                 accountName,
-                alias, // <-- AHORA GUARDA LO QUE ESCRIBAS
-                username,
-                password,
+                alias,
+                username: username || 'N/A', 
+                password: password || 'N/A',
                 category,
                 websiteUrl,
-                notes
+                notes,
+                ...specialData 
             });
 
             Alert.alert("Éxito", "Cuenta guardada en el Bunker");
@@ -71,7 +80,6 @@ export default function AddCredentialScreen() {
                 <Text style={styles.label}>Nombre de la cuenta *</Text>
                 <TextInput style={styles.input} value={accountName} onChangeText={setAccountName} placeholder="Ej: Netflix" placeholderTextColor="#666" />
 
-                {/* 3. CAMPO DE ALIAS INTEGRADO JUSTO AQUÍ */}
                 <Text style={styles.label}>Alias de la cuenta (Opcional)</Text>
                 <TextInput 
                     style={styles.input} 
@@ -89,24 +97,41 @@ export default function AddCredentialScreen() {
                     <Ionicons name="chevron-down" size={20} color="#007BFF" />
                 </TouchableOpacity>
 
-                <Text style={styles.label}>Usuario / Email *</Text>
-                <TextInput style={styles.input} value={username} onChangeText={setUsername} autoCapitalize="none" placeholderTextColor="#666" />
+                {/* --- SECCIÓN DINÁMICA DE MASCOTAS / MOVILIDAD --- */}
+                <SpecialCategoryForm 
+                    category={category}
+                    formData={specialData}
+                    onChange={handleSpecialChange}
+                    isDark={true}
+                />
 
-                <Text style={styles.label}>Contraseña *</Text>
-                <View style={styles.passwordRow}>
-                    <TextInput 
-                        style={[styles.input, { flex: 1 }]} 
-                        value={password} 
-                        onChangeText={setPassword} 
-                        secureTextEntry={!showPassword} 
-                    />
-                    <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.iconBtn}>
-                        <Ionicons name={showPassword ? "eye-off" : "eye"} size={24} color="#007BFF" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={generatePassword} style={styles.iconBtn}>
-                        <Ionicons name="flash" size={24} color="#FFD700" />
-                    </TouchableOpacity>
-                </View>
+                {/* Diseño corregido de Usuario y Contraseña */}
+                {category !== 'pet' && category !== 'mobility' && (
+                    <>
+                        <Text style={styles.label}>Usuario / Email *</Text>
+                        <TextInput style={styles.input} value={username} onChangeText={setUsername} autoCapitalize="none" placeholderTextColor="#666" />
+
+                        <View style={styles.passwordHeader}>
+                            <Text style={styles.labelPassword}>Contraseña *</Text>
+                            <TouchableOpacity onPress={generatePassword}>
+                                <Text style={styles.generateText}>Generar clave segura</Text>
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <View style={styles.passwordContainer}>
+                            <TextInput 
+                                style={styles.passwordInput} 
+                                value={password} 
+                                onChangeText={setPassword} 
+                                secureTextEntry={!showPassword} 
+                                placeholderTextColor="#666"
+                            />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.innerIcon}>
+                                <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#007BFF" />
+                            </TouchableOpacity>
+                        </View>
+                    </>
+                )}
 
                 <Text style={styles.label}>Sitio Web</Text>
                 <TextInput style={styles.input} value={websiteUrl} onChangeText={setWebsiteUrl} placeholder="www.ejemplo.com" placeholderTextColor="#666" />
@@ -155,8 +180,22 @@ const styles = StyleSheet.create({
     scroll: { padding: 20 },
     label: { color: '#ADB5BD', fontSize: 14, marginBottom: 8, marginTop: 15, fontWeight: 'bold' },
     input: { backgroundColor: '#1E1E1E', color: '#FFF', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#333', marginBottom: 5 },
-    passwordRow: { flexDirection: 'row', alignItems: 'center' },
-    iconBtn: { marginLeft: 10, padding: 5 },
+    
+    // NUEVOS ESTILOS PARA CONTRASEÑA UNIFICADA
+    passwordHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15, marginBottom: 8 },
+    labelPassword: { color: '#ADB5BD', fontSize: 14, fontWeight: 'bold' },
+    generateText: { color: '#007BFF', fontSize: 12, fontWeight: 'bold' },
+    passwordContainer: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        backgroundColor: '#1E1E1E', 
+        borderRadius: 10, 
+        borderWidth: 1, 
+        borderColor: '#333' 
+    },
+    passwordInput: { flex: 1, color: '#FFF', padding: 15, fontSize: 16 },
+    innerIcon: { paddingHorizontal: 15 },
+
     pickerTrigger: { backgroundColor: '#1E1E1E', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#333', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     pickerTriggerText: { color: '#FFF', fontSize: 16 },
     saveButton: { backgroundColor: '#007BFF', padding: 18, borderRadius: 12, marginTop: 40, alignItems: 'center', marginBottom: 50 },

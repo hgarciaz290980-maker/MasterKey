@@ -1,113 +1,113 @@
 import React, { useState, useEffect } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    Modal,
-    TextInput,
-    TouchableOpacity,
-    useColorScheme
-} from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardTypeOptions } from 'react-native';
 
 interface EditModalProps {
-    isVisible: boolean;
-    onClose: () => void;
-    onSave: (newValue: string) => void;
-    fieldLabel: string;
-    initialValue: string;
-    isPassword?: boolean;
+  isVisible: boolean;
+  onClose: () => void;
+  onSave: (value: string) => void;
+  fieldLabel: string;
+  initialValue: string;
+  keyboardType?: KeyboardTypeOptions;
 }
 
-export default function EditCredentialModal({
-    isVisible,
-    onClose,
-    onSave,
-    fieldLabel,
-    initialValue,
-    isPassword
+export default function EditCredentialModal({ 
+  isVisible, onClose, onSave, fieldLabel, initialValue, keyboardType = 'default' 
 }: EditModalProps) {
-    const [value, setValue] = useState(initialValue);
-    const [showPassword, setShowPassword] = useState(false);
-    const colorScheme = useColorScheme();
-    const isDark = colorScheme === 'dark';
+  const [value, setValue] = useState(initialValue);
+  const [period, setPeriod] = useState('AM');
 
-    useEffect(() => {
+  useEffect(() => {
+    if (isVisible) {
+      if (initialValue.includes('AM')) {
+        setValue(initialValue.replace(' AM', ''));
+        setPeriod('AM');
+      } else if (initialValue.includes('PM')) {
+        setValue(initialValue.replace(' PM', ''));
+        setPeriod('PM');
+      } else {
         setValue(initialValue);
-    }, [initialValue, isVisible]);
+      }
+    }
+  }, [initialValue, isVisible]);
 
-    // Función para generar contraseña segura dentro del modal
-    const generatePassword = () => {
-        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+";
-        let retVal = "";
-        for (let i = 0; i < 16; ++i) {
-            retVal += charset.charAt(Math.floor(Math.random() * charset.length));
-        }
-        setValue(retVal);
-        setShowPassword(true);
-    };
+  // ESTA FUNCIÓN ES LA QUE PONE LAS DIAGONALES Y PUNTOS
+  const handleTextChange = (text: string) => {
+    if (fieldLabel === 'Fecha') {
+      let cleaned = text.replace(/[^0-9]/g, '');
+      if (cleaned.length > 8) cleaned = cleaned.substring(0, 8);
+      let formatted = cleaned;
+      if (cleaned.length > 2) formatted = `${cleaned.substring(0, 2)}/${cleaned.substring(2)}`;
+      if (cleaned.length > 4) formatted = `${cleaned.substring(0, 2)}/${cleaned.substring(2, 4)}/${cleaned.substring(4)}`;
+      setValue(formatted);
+    } else if (fieldLabel === 'Hora') {
+      let cleaned = text.replace(/[^0-9]/g, '');
+      if (cleaned.length > 4) cleaned = cleaned.substring(0, 4);
+      let formatted = cleaned;
+      if (cleaned.length > 2) formatted = `${cleaned.substring(0, 2)}:${cleaned.substring(2)}`;
+      setValue(formatted);
+    } else {
+      setValue(text);
+    }
+  };
 
-    return (
-        <Modal visible={isVisible} transparent animationType="fade">
-            <View style={styles.overlay}>
-                <View style={[styles.modalContainer, { backgroundColor: isDark ? '#1E1E1E' : '#FFFFFF' }]}>
-                    <View style={styles.header}>
-                        <Text style={[styles.title, { color: isDark ? '#FFF' : '#212529' }]}>{fieldLabel}</Text>
-                        <TouchableOpacity onPress={onClose}>
-                            <Ionicons name="close-circle" size={28} color="#ADB5BD" />
-                        </TouchableOpacity>
-                    </View>
+  return (
+    <Modal visible={isVisible} animationType="slide" transparent={true}>
+      <View style={styles.overlay}>
+        <View style={styles.modalContent}>
+          <Text style={styles.label}>{fieldLabel}</Text>
+          <TextInput
+            style={styles.input}
+            value={value}
+            onChangeText={handleTextChange} // <-- CONECTADO CORRECTAMENTE AHORA
+            autoFocus={true}
+            keyboardType={keyboardType}
+            placeholder={fieldLabel === 'Fecha' ? "DD/MM/AAAA" : fieldLabel === 'Hora' ? "00:00" : "Escribe aquí..."}
+            placeholderTextColor="#999"
+            maxLength={fieldLabel === 'Fecha' ? 10 : fieldLabel === 'Hora' ? 5 : undefined}
+          />
 
-                    {/* Botón de Generar solo si es campo de Password */}
-                    {isPassword && (
-                        <TouchableOpacity onPress={generatePassword} style={styles.generateContainer}>
-                            <Ionicons name="refresh-circle-outline" size={20} color="#007BFF" />
-                            <Text style={styles.generateText}>Generar Contraseña Segura</Text>
-                        </TouchableOpacity>
-                    )}
-
-                    <View style={[styles.inputContainer, { backgroundColor: isDark ? '#2C2C2E' : '#F8F9FA' }]}>
-                        <TextInput
-                            style={[styles.input, { color: isDark ? '#FFF' : '#212529' }]}
-                            value={value}
-                            onChangeText={setValue}
-                            secureTextEntry={isPassword && !showPassword}
-                            autoFocus
-                        />
-                        {isPassword && (
-                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                                <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#6C757D" />
-                            </TouchableOpacity>
-                        )}
-                    </View>
-
-                    <View style={styles.buttonRow}>
-                        <TouchableOpacity style={styles.cancelButton} onPress={onClose}>
-                            <Text style={styles.cancelButtonText}>Cancelar</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.saveButton} onPress={() => onSave(value)}>
-                            <Text style={styles.saveButtonText}>Guardar</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
+          {fieldLabel === 'Hora' && (
+            <View style={styles.periodContainer}>
+              {['AM', 'PM'].map((p) => (
+                <TouchableOpacity 
+                  key={p} 
+                  onPress={() => setPeriod(p)}
+                  style={[styles.periodBtn, period === p && styles.periodBtnActive]}
+                >
+                  <Text style={{ color: period === p ? '#FFF' : '#333', fontWeight: 'bold' }}>{p}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
-        </Modal>
-    );
+          )}
+
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
+              <Text style={styles.cancelText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => onSave(fieldLabel === 'Hora' ? `${value} ${period}` : value)} 
+              style={styles.saveBtn}
+            >
+              <Text style={styles.saveText}>Confirmar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
 }
 
 const styles = StyleSheet.create({
-    overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 25 },
-    modalContainer: { borderRadius: 24, padding: 25, elevation: 10 },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    title: { fontSize: 20, fontWeight: 'bold' },
-    generateContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, alignSelf: 'flex-start' },
-    generateText: { color: '#007BFF', fontWeight: 'bold', marginLeft: 5, fontSize: 14 },
-    inputContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 15, marginBottom: 25 },
-    input: { flex: 1, paddingVertical: 15, fontSize: 16 },
-    eyeIcon: { padding: 5 },
-    buttonRow: { flexDirection: 'row', gap: 12 },
-    cancelButton: { flex: 1, backgroundColor: '#E9ECEF', padding: 15, borderRadius: 12, alignItems: 'center' },
-    cancelButtonText: { color: '#495057', fontWeight: 'bold', fontSize: 16 },
-    saveButton: { flex: 1, backgroundColor: '#007BFF', padding: 15, borderRadius: 12, alignItems: 'center' },
-    saveButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 }
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#FFF', borderRadius: 20, padding: 25, elevation: 5 },
+  label: { fontSize: 14, fontWeight: 'bold', marginBottom: 15, color: '#333' },
+  input: { borderBottomWidth: 1, borderBottomColor: '#007BFF', paddingVertical: 10, fontSize: 18, marginBottom: 25, color: '#000' },
+  periodContainer: { flexDirection: 'row', justifyContent: 'center', marginBottom: 25 },
+  periodBtn: { paddingVertical: 8, paddingHorizontal: 20, marginHorizontal: 5, borderRadius: 8, borderWidth: 1, borderColor: '#DDD' },
+  periodBtnActive: { backgroundColor: '#007BFF', borderColor: '#007BFF' },
+  buttonContainer: { flexDirection: 'row', justifyContent: 'flex-end' },
+  cancelBtn: { marginRight: 20, padding: 10 },
+  cancelText: { color: '#666', fontWeight: '600' },
+  saveBtn: { backgroundColor: '#007BFF', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10 },
+  saveText: { color: '#FFF', fontWeight: 'bold' }
 });

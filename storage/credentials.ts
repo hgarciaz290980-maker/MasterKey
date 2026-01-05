@@ -13,10 +13,29 @@ export interface Credential {
     websiteUrl?: string;
     notes?: string;
     category: 'fav' | 'work' | 'personal' | 'pet' | 'mobility' | 'entertainment'; 
-    // AGREGAR ESTOS TRES CAMPOS:
     hasReminder?: boolean;
     reminderDate?: string;
     reminderNote?: string;
+
+    // --- NUEVOS CAMPOS PARA MASCOTAS (PET) ---
+    petRaza?: string;
+    petEdad?: string;
+    petChip?: string;
+    petEspecie?: 'Perro' | 'Gato' | 'Otro';
+    petTipoSangre?: string;
+    petVeterinarioNombre?: string;
+    petVeterinarioTelefono?: string; // <--- LISTO PARA LLAMADA DIRECTA
+    petFechaVacuna?: string;
+    petFechaDesparasitacion?: string;
+
+    // --- NUEVOS CAMPOS PARA MOVILIDAD ---
+    autoPlacas?: string;
+    autoNoCircula?: string;
+    autoAseguradoraNombre?: string;
+    autoAseguradoraTelefono?: string; // <--- LISTO PARA LLAMADA DIRECTA
+    autoPoliza?: string;
+    autoVencimientoPoliza?: string;
+    autoVerificacion?: string;
 }
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);

@@ -1,366 +1,256 @@
 import React, { useState, useCallback } from 'react';
 import { 
-    View, 
-    Text, 
-    StyleSheet, 
-    SafeAreaView, 
-    ActivityIndicator, 
-    TouchableOpacity, 
-    Alert, 
-    ScrollView,
-    Modal,
-    Switch,
-    TextInput,
-    useColorScheme,
-    Platform
+    View, Text, StyleSheet, SafeAreaView, ActivityIndicator, 
+    TouchableOpacity, Alert, ScrollView, Switch, 
+    useColorScheme, Linking 
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard'; 
 import * as LocalAuthentication from 'expo-local-authentication'; 
 
-// IMPORTACIÓN SEGURA PARA EVITAR EL ERROR DE "RNCDatePicker"
-let DateTimePicker: any = null;
-try {
-    DateTimePicker = require('@react-native-community/datetimepicker').default;
-} catch (e) {
-    console.log("Modo manual activado: DateTimePicker no disponible.");
-}
-
-import { getCredentialById, deleteCredential, updateCredential, Credential } from '@/storage/credentials'; 
-import { scheduleReminder } from '@/storage/notifications'; 
+import { getCredentialById, updateCredential, deleteCredential } from '@/storage/credentials'; 
 import EditCredentialModal from '../components/EditCredentialModal'; 
 
-type EditableKeys = 'accountName' | 'alias' | 'username' | 'password' | 'websiteUrl' | 'notes' | 'category' | 'reminderNote';
-
-const CATEGORIES_LIST = [
-    { id: 'fav', label: 'Recurrentes', icon: 'star', color: '#FFC107' },
-    { id: 'personal', label: 'Personal', icon: 'person', color: '#20c997' },
-    { id: 'work', label: 'Trabajo', icon: 'briefcase', color: '#6f42c1' },
-    { id: 'pet', label: 'Mascota', icon: 'paw', color: '#fd7e14' },
-    { id: 'mobility', label: 'Movilidad', icon: 'car-sport', color: '#dc3545' },
-    { id: 'entertainment', label: 'Entretenimiento', icon: 'play-circle', color: '#e83e8c' },
-] as const;
+type EditableKeys = 'accountName' | 'alias' | 'username' | 'password' | 'notes' | 'category' | 
+                   'petTipo' | 'petNombre' | 'petSangre' | 'petChip' | 'petVacunas' | 
+                   'petVeterinario' | 'petVeterinarioTelefono' | 'reminderNote' | 'reminderDate' | 'reminderTime';
 
 export default function CredentialDetailsScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
     const colorScheme = useColorScheme();
-    
     const isDark = colorScheme === 'dark';
+
     const theme = {
         background: isDark ? '#121212' : '#F8F9FA',
         text: isDark ? '#F8F9FA' : '#212529',
         card: isDark ? '#1E1E1E' : '#FFFFFF',
         subText: isDark ? '#ADB5BD' : '#6C757D',
         border: isDark ? '#333333' : '#E9ECEF',
-        primary: isDark ? '#3DA9FC' : '#007BFF',
-        specialCard: isDark ? '#1A2A3A' : '#E6F0FF', 
-        specialText: isDark ? '#3DA9FC' : '#0056b3',
-        placeholder: isDark ? '#666' : '#ADB5BD'
+        primary: '#007BFF',
+        danger: '#DC3545',
+        callButton: '#28A745',
     };
     
-    const [credential, setCredential] = useState<Credential | null>(null);
+    const [credential, setCredential] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalVisible, setIsModalVisible] = useState(false);
-    const [showCategoryModal, setShowCategoryModal] = useState(false);
     const [editingField, setEditingField] = useState<EditableKeys | ''>(''); 
     const [editingLabel, setEditingLabel] = useState('');
     const [isUnlocked, setIsUnlocked] = useState(false); 
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-    const [showDatePicker, setShowDatePicker] = useState(false);
-    const [manualDate, setManualDate] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
-    const fieldMap: Record<EditableKeys, string> = {
-        accountName: 'Nombre de Cuenta',
-        alias: 'Alias',
-        username: 'Usuario',
-        password: 'Contraseña',
-        websiteUrl: 'URL del Sitio Web',
-        notes: 'Notas Personales',
-        category: 'Categoría',
-        reminderNote: 'Nota del Recordatorio'
-    };
-
-    // --- FUNCIONES DE ACCIÓN ---
-    const updateField = (field: EditableKeys, value: any) => {
-        setCredential(prev => {
-            if (!prev) return null;
-            return { ...prev, [field]: value };
-        });
-        setHasUnsavedChanges(true);
-    };
-
-    const handleSaveEdit = (newValue: string) => {
-        if (!editingField) return;
-        updateField(editingField, newValue);
-        setIsModalVisible(false);
-    };
-
-    // Lógica para poner diagonales automáticas (DD/MM/AAAA)
-    const handleManualDateChange = (text: string) => {
-        let cleaned = text.replace(/\D/g, ''); // Solo números
-        let formatted = cleaned;
-        
-        if (cleaned.length > 2) {
-            formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
-        }
-        if (cleaned.length > 4) {
-            formatted = formatted.slice(0, 5) + '/' + cleaned.slice(4, 8);
-        }
-        
-        setManualDate(formatted);
-
-        if (formatted.length === 10) {
-            const [day, month, year] = formatted.split('/').map(Number);
-            const date = new Date(year, month - 1, day);
-            if (!isNaN(date.getTime())) {
-                updateField('reminderDate' as any, date.toISOString());
-            }
-        }
+    const fieldLabels: Record<string, string> = {
+        accountName: 'Nombre', alias: 'Alias', username: 'Usuario', password: 'Contraseña',
+        notes: 'Notas', petTipo: 'Tipo de Mascota', petNombre: 'Raza',
+        petSangre: 'Sangre', petChip: 'Chip', petVacunas: 'Vacunas / Alergias',
+        petVeterinario: 'Nombre del Veterinario', petVeterinarioTelefono: 'Teléfono del Veterinario',
+        reminderNote: '¿Qué debemos recordarte?', reminderDate: 'Fecha', reminderTime: 'Hora'
     };
 
     const fetchCredential = async () => {
         if (!id) return;
-        setIsLoading(true);
         try {
             const data = await getCredentialById(id); 
             setCredential(data || null);
-            if (data?.reminderDate) {
-                const d = new Date(data.reminderDate);
-                setManualDate(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`);
-            }
-            const result = await LocalAuthentication.authenticateAsync({
-                promptMessage: 'Acceso a la cuenta',
-                fallbackLabel: 'Usar PIN',
-            });
-            if (result.success) setIsUnlocked(true);
-            else router.back();
-        } catch (error) {
-            console.error("Error cargando detalles:", error);
-        } finally {
-            setIsLoading(false);
-        }
+            const result = await LocalAuthentication.authenticateAsync({ promptMessage: 'Acceso Bunker' });
+            if (result.success) setIsUnlocked(true); else router.back();
+        } catch (error) { console.error(error); } finally { setIsLoading(false); }
     };
     
-    useFocusEffect(useCallback(() => {
-        fetchCredential();
-        return () => { setIsUnlocked(false); setHasUnsavedChanges(false); };
-    }, [id]));
+    useFocusEffect(useCallback(() => { fetchCredential(); return () => setIsUnlocked(false); }, [id]));
 
-    const handleSaveChanges = async () => {
-        if (!credential) return;
-        try {
-            await updateCredential(credential);
-            if (credential.hasReminder && credential.reminderDate) {
-                const dateObj = new Date(credential.reminderDate);
-                if (dateObj > new Date()) {
-                    await scheduleReminder(credential.accountName, credential.reminderNote || 'Recordatorio Bunker-K', dateObj);
-                }
-            }
-            setHasUnsavedChanges(false);
-            Alert.alert("Éxito", "Cambios guardados", [{ text: "OK", onPress: () => router.back() }]);
-        } catch (e) {
-            Alert.alert("Error", "No se pudo guardar.");
-        }
+    const updateField = (field: string, value: any) => {
+        setCredential((prev: any) => ({ ...prev, [field]: value }));
+        setHasUnsavedChanges(true);
     };
 
-    const copyToClipboard = async (text: string | undefined, field: string) => {
-        if (!text) return;
-        await Clipboard.setStringAsync(text);
-        Alert.alert("Copiado", `${field} copiado.`);
+    const generateSecurePassword = () => {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
+        let password = "";
+        for (let i = 0; i < 16; i++) {
+            password += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        updateField('password', password);
+        Alert.alert("Bunker", "Contraseña segura generada.");
+    };
+
+    const handleSaveModal = (val: string) => {
+        if (!editingField) return;
+        updateField(editingField, val);
+        setIsModalVisible(false);
+    };
+
+    const handleSaveChanges = async () => {
+        try {
+            await updateCredential(credential);
+            Alert.alert("Éxito", "Bunker actualizado", [{ text: "OK", onPress: () => { setHasUnsavedChanges(false); router.back(); } }]);
+        } catch (error) {
+            Alert.alert("Error", "No se pudieron guardar los cambios");
+        }
     };
 
     const handleDelete = () => {
-        Alert.alert("Eliminar", "¿Borrar cuenta?", [
+        Alert.alert("Eliminar", "¿Estás seguro?", [
             { text: "Cancelar", style: "cancel" },
-            { text: "Eliminar", style: "destructive", onPress: async () => {
-                if (id) { await deleteCredential(id); router.replace('/(tabs)'); }
-            }}
+            { text: "Eliminar", style: "destructive", onPress: async () => { await deleteCredential(id as string); router.back(); } }
         ]);
     };
 
-    const selectedCategory = CATEGORIES_LIST.find(c => c.id === credential?.category) || CATEGORIES_LIST[1];
+    const renderGroupItem = (label: string, key: EditableKeys, value: string) => (
+        <TouchableOpacity style={styles.groupItem} onPress={() => { setEditingField(key); setEditingLabel(fieldLabels[key]); setIsModalVisible(true); }}>
+            <View style={{flex: 1}}>
+                <Text style={[styles.infoLabel, { color: theme.subText }]}>{label}</Text>
+                <Text style={[styles.infoValue, { color: theme.text, textTransform: key === 'petTipo' ? 'capitalize' : 'none' }]}>{value || 'No asignado'}</Text>
+            </View>
+            <Ionicons name="pencil" size={14} color={theme.primary} />
+        </TouchableOpacity>
+    );
 
-    if (isLoading || !isUnlocked) {
-        return (
-            <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background, justifyContent: 'center' }]}>
-                <ActivityIndicator size="large" color={theme.primary} />
-            </SafeAreaView>
-        );
-    }
+    const renderRow = (label: string, key: EditableKeys, value: string, isPassword = false) => (
+        <View style={{ marginBottom: 15 }}>
+            {/* Cabecera del campo: Etiqueta y Opción de Generar si es password */}
+            <View style={styles.rowHeader}>
+                <Text style={[styles.infoLabel, { color: theme.subText }]}>{label}</Text>
+                {isPassword && (
+                    <TouchableOpacity onPress={generateSecurePassword}>
+                        <Text style={styles.generateText}>Generar clave segura</Text>
+                    </TouchableOpacity>
+                )}
+            </View>
+
+            <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <View style={{ flex: 1 }}>
+                    <Text style={[styles.infoValue, { color: theme.text, textTransform: (key === 'petTipo' || key === 'accountName') ? 'capitalize' : 'none' }]}>
+                        {isPassword ? (showPassword ? value : '••••••••••••') : (value || 'No asignado')}
+                    </Text>
+                </View>
+                
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {isPassword && (
+                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.innerEditBtn}>
+                            <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color={theme.subText} />
+                        </TouchableOpacity>
+                    )}
+                    <TouchableOpacity onPress={() => {
+                        if (key === 'petTipo') {
+                            Alert.alert("Mascota", "Elige tipo", [
+                                { text: "Perro 🐶", onPress: () => updateField('petTipo', 'perro') },
+                                { text: "Gato 🐱", onPress: () => updateField('petTipo', 'gato') },
+                                { text: "Otro 🐾", onPress: () => updateField('petTipo', 'otro') },
+                            ]);
+                        } else {
+                            setEditingField(key); setEditingLabel(fieldLabels[key]); setIsModalVisible(true);
+                        }
+                    }} style={styles.innerEditBtn}>
+                        <Ionicons name="pencil" size={18} color={theme.primary} />
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </View>
+    );
+
+    if (isLoading || !isUnlocked) return <View style={[styles.center, {backgroundColor: theme.background}]}><ActivityIndicator size="large" color={theme.primary}/></View>;
 
     return (
-        <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-            <Stack.Screen options={{ title: "Detalles", headerShadowVisible: false }} />
-            
-            {credential ? (
-                <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}> 
-                    
-                    {/* CABECERA */}
-                    <View style={[styles.detailCard, { backgroundColor: theme.specialCard, borderColor: theme.primary, borderWidth: 1 }]}>
-                        <Text style={[styles.accountNameLabel, { color: theme.specialText }]}>Cuenta:</Text>
-                        <View style={styles.accountNameContainer}>
-                            <Text style={[styles.accountNameText, { color: theme.primary }]}>{credential.accountName}</Text>
-                            <TouchableOpacity onPress={() => { setEditingField('accountName'); setEditingLabel(fieldMap['accountName']); setIsModalVisible(true); }} style={styles.iconButton}>
-                                <Ionicons name="pencil-outline" size={22} color={theme.primary} /> 
-                            </TouchableOpacity>
-                        </View>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+            <Stack.Screen options={{ title: "Detalles del Registro" }} />
+            <ScrollView contentContainerStyle={{ padding: 20 }}>
+                
+                <Text style={[styles.sectionTitle, { color: theme.primary }]}>INFORMACIÓN GENERAL</Text>
+                {renderRow(credential.category === 'pet' ? 'Nombre Mascota' : 'Nombre', 'accountName', credential.accountName)}
+                {renderRow('Alias', 'alias', credential.alias)}
 
-                        <Text style={[styles.innerLabel, { color: theme.specialText }]}>Categoría:</Text>
-                        <TouchableOpacity style={[styles.categoryPickerToggle, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => setShowCategoryModal(true)}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Ionicons name={selectedCategory.icon as any} size={20} color={selectedCategory.color} />
-                                <Text style={[styles.categoryValueText, { color: theme.text }]}> {selectedCategory.label}</Text>
+                {credential.category !== 'pet' && (
+                    <>
+                        <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>DATOS DE ACCESO</Text>
+                        {renderRow('Usuario', 'username', credential.username)}
+                        {renderRow('Contraseña', 'password', credential.password, true)}
+                        {renderRow('Notas', 'notes', credential.notes)}
+                    </>
+                )}
+
+                {credential.category === 'pet' && (
+                    <>
+                        <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>FICHA MÉDICA 🐾</Text>
+                        {renderRow('Tipo', 'petTipo', credential.petTipo)}
+                        {renderRow('Raza', 'petNombre', credential.petNombre)}
+                        {renderRow('Sangre', 'petSangre', credential.petSangre)}
+                        {renderRow('Vacunas / Alergias', 'petVacunas', credential.petVacunas)}
+                        
+                        <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>EMERGENCIA</Text>
+                        {renderRow('Nombre del Veterinario', 'petVeterinario', credential.petVeterinario)}
+                        <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.callButton, borderLeftWidth: 4 }]}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>Teléfono</Text>
+                                <Text style={[styles.infoValue, { color: theme.text, fontWeight: 'bold' }]}>{credential.petVeterinarioTelefono || 'Sin teléfono'}</Text>
                             </View>
-                            <Ionicons name="chevron-down" size={18} color={theme.subText} />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* CAMPOS DE DATOS */}
-                    {[
-                        { label: 'Alias', key: 'alias', value: credential.alias || 'Sin alias', copy: false },
-                        { label: 'Usuario', key: 'username', value: credential.username, copy: true },
-                        { label: 'Contraseña', key: 'password', value: '••••••••', copy: true },
-                        { label: 'Sitio Web', key: 'websiteUrl', value: credential.websiteUrl || 'No especificado', copy: false },
-                        { label: 'Notas', key: 'notes', value: credential.notes || 'Sin notas', copy: false }
-                    ].map((item) => (
-                        <View key={item.key} style={[styles.detailCard, { backgroundColor: theme.card }]}>
-                            <Text style={[styles.detailLabel, { color: theme.subText }]}>{item.label}:</Text>
-                            <View style={styles.detailValueContainer}>
-                                <Text style={[styles.detailValue, { color: theme.text }]} numberOfLines={1}>{item.value}</Text>
-                                <View style={{ flexDirection: 'row' }}>
-                                    {item.copy && (
-                                        <TouchableOpacity onPress={() => copyToClipboard(item.key === 'password' ? credential.password : (credential[item.key as keyof Credential] as string), item.label)} style={styles.iconButton}>
-                                            <Ionicons name="copy-outline" size={20} color={theme.primary} />
-                                        </TouchableOpacity>
-                                    )}
-                                    <TouchableOpacity onPress={() => { setEditingField(item.key as EditableKeys); setEditingLabel(fieldMap[item.key as EditableKeys]); setIsModalVisible(true); }} style={styles.iconButton}>
-                                        <Ionicons name="pencil-outline" size={20} color={theme.subText} /> 
+                            <View style={{flexDirection: 'row'}}>
+                                {credential.petVeterinarioTelefono && (
+                                    <TouchableOpacity onPress={() => Linking.openURL(`tel:${credential.petVeterinarioTelefono}`)} style={[styles.actionBtn, { backgroundColor: theme.callButton }]}>
+                                        <Ionicons name="call" size={20} color="#FFF" />
                                     </TouchableOpacity>
-                                </View>
+                                )}
+                                <TouchableOpacity onPress={() => { setEditingField('petVeterinarioTelefono'); setEditingLabel('Teléfono del Veterinario'); setIsModalVisible(true); }} style={styles.innerEditBtn}>
+                                    <Ionicons name="pencil" size={18} color={theme.primary} />
+                                </TouchableOpacity>
                             </View>
                         </View>
-                    ))}
+                    </>
+                )}
 
-                    {/* RECORDATORIO */}
-                    <View style={[styles.detailCard, { 
-                        backgroundColor: theme.card, 
-                        borderLeftWidth: 4, 
-                        borderLeftColor: credential.hasReminder ? theme.primary : theme.border,
-                        marginTop: 10 
-                    }]}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <Text style={[styles.detailLabel, { color: theme.text }]}>Recordatorio activo</Text>
-                            <Switch 
-                                value={credential.hasReminder || false} 
-                                onValueChange={(val) => updateField('hasReminder' as any, val)}
-                                trackColor={{ false: "#333", true: theme.primary }}
-                            />
-                        </View>
-
-                        {credential.hasReminder && (
-                            <View style={{ marginTop: 15, paddingTop: 10, borderTopWidth: 0.5, borderTopColor: isDark ? '#333' : '#EEE' }}>
-                                <Text style={[styles.innerLabel, { color: theme.subText }]}>¿Qué debemos recordarte?</Text>
-                                <TextInput 
-                                    style={[styles.textInput, { color: theme.text, backgroundColor: isDark ? '#252525' : '#F0F0F0' }]}
-                                    value={credential.reminderNote || ''}
-                                    onChangeText={(val) => updateField('reminderNote', val)}
-                                    placeholder="Ej: Pagar suscripción"
-                                    placeholderTextColor={theme.placeholder}
-                                />
-                                
-                                <Text style={[styles.innerLabel, { color: theme.subText, marginTop: 15 }]}>Fecha (Día/Mes/Año):</Text>
-                                
-                                <View style={[styles.manualDateContainer, { backgroundColor: isDark ? '#252525' : '#F0F0F0' }]}>
-                                    <Ionicons name="calendar-outline" size={18} color={theme.subText} style={{ marginRight: 10 }} />
-                                    <TextInput 
-                                        style={{ color: theme.text, flex: 1, height: 45 }}
-                                        value={manualDate}
-                                        onChangeText={handleManualDateChange}
-                                        placeholder="Ej: 31/12/2025"
-                                        placeholderTextColor={theme.placeholder}
-                                        keyboardType="numeric"
-                                        maxLength={10}
-                                    />
-                                </View>
-                            </View>
-                        )}
-                    </View>
-                    
-                    {/* ACCIONES */}
-                    <View style={styles.actionButtonsContainer}>
-                        <TouchableOpacity onPress={handleDelete} style={[styles.actionButton, styles.deleteButton]}>
-                            <Ionicons name="trash-outline" size={20} color="#FFFFFF" />
-                            <Text style={styles.actionButtonText}>Eliminar</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity 
-                            onPress={handleSaveChanges} 
-                            style={[styles.actionButton, styles.saveButton, !hasUnsavedChanges && styles.disabled]}
-                            disabled={!hasUnsavedChanges}
-                        >
-                            <Ionicons name="shield-checkmark-outline" size={20} color="#FFFFFF" />
-                            <Text style={styles.actionButtonText}>Guardar</Text>
-                        </TouchableOpacity>
-                    </View>
-                </ScrollView>
-            ) : null}
-
-            {/* MODAL CATEGORÍA */}
-            <Modal visible={showCategoryModal} transparent animationType="fade">
-                <View style={styles.modalOverlay}>
-                    <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
-                        <Text style={[styles.modalTitle, { color: theme.text }]}>Categoría</Text>
-                        {CATEGORIES_LIST.map((item) => (
-                            <TouchableOpacity key={item.id} style={styles.categoryItem} onPress={() => { updateField('category', item.id); setShowCategoryModal(false); }}>
-                                <Ionicons name={item.icon as any} size={24} color={item.color} />
-                                <Text style={[styles.categoryItemText, { color: theme.text }]}>{item.label}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
+                <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>RECORDATORIOS</Text>
+                <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border, justifyContent: 'space-between' }]}>
+                    <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 0 }]}>Activar recordatorio</Text>
+                    <Switch value={!!credential.hasReminder} onValueChange={(val) => updateField('hasReminder', val)} trackColor={{ false: "#767577", true: theme.primary }} />
                 </View>
-            </Modal>
-            
-            {/* MODAL EDICIÓN */}
-            {isModalVisible && credential && editingField && (
-                <EditCredentialModal
-                    isVisible={isModalVisible}
-                    onClose={() => setIsModalVisible(false)}
-                    onSave={handleSaveEdit}
-                    fieldLabel={editingLabel}
-                    initialValue={(credential[editingField as keyof Credential] as string) || ''}
-                    isPassword={editingField === 'password'}
-                />
-            )}
+
+                {credential.hasReminder && (
+                    <View style={[styles.reminderCard, { backgroundColor: theme.card, borderColor: theme.primary, borderLeftWidth: 5 }]}>
+                        {renderGroupItem('¿Qué debemos recordarte?', 'reminderNote', credential.reminderNote)}
+                        <View style={styles.divider} />
+                        <View style={{ flexDirection: 'row' }}>
+                            <View style={{ flex: 1 }}>{renderGroupItem('Fecha', 'reminderDate', credential.reminderDate)}</View>
+                            <View style={[styles.verticalDivider, { backgroundColor: theme.border }]} />
+                            <View style={{ flex: 1 }}>{renderGroupItem('Hora', 'reminderTime', credential.reminderTime)}</View>
+                        </View>
+                    </View>
+                )}
+
+                <View style={styles.footerButtons}>
+                    <TouchableOpacity onPress={handleDelete} style={[styles.actionButton, { backgroundColor: theme.danger }]}>
+                        <Ionicons name="trash-outline" size={20} color="#FFF" />
+                        <Text style={styles.buttonText}>Eliminar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={handleSaveChanges} style={[styles.actionButton, { backgroundColor: theme.primary, opacity: hasUnsavedChanges ? 1 : 0.5 }]} disabled={!hasUnsavedChanges}>
+                        <Ionicons name="shield-checkmark-outline" size={20} color="#FFF" />
+                        <Text style={styles.buttonText}>Guardar</Text>
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
+
+            <EditCredentialModal isVisible={isModalVisible} onClose={() => setIsModalVisible(false)} onSave={handleSaveModal} fieldLabel={editingLabel} initialValue={credential ? credential[editingField as any] || '' : ''} keyboardType={editingField === 'reminderDate' || editingField === 'reminderTime' || editingField === 'petVeterinarioTelefono' ? 'numeric' : 'default'} />
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1 },
-    scrollContainer: { padding: 20, paddingTop: 30, paddingBottom: 60 },
-    detailCard: { padding: 15, borderRadius: 16, marginBottom: 12 },
-    accountNameLabel: { fontSize: 11, marginBottom: 2, textTransform: 'uppercase', fontWeight: 'bold', opacity: 0.8 },
-    accountNameContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-    accountNameText: { fontSize: 24, fontWeight: '800', flex: 1 },
-    innerLabel: { fontSize: 11, marginBottom: 6, textTransform: 'uppercase', fontWeight: 'bold', opacity: 0.8 },
-    detailLabel: { fontSize: 13, marginBottom: 6, fontWeight: '600' },
-    detailValueContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    detailValue: { fontSize: 16, fontWeight: '500', flex: 1 },
-    categoryPickerToggle: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 10, borderRadius: 12, borderWidth: 1 },
-    categoryValueText: { fontSize: 15, fontWeight: '700' },
-    iconButton: { padding: 5, marginLeft: 10 },
-    textInput: { padding: 12, borderRadius: 10, marginTop: 5 },
-    manualDateContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, borderRadius: 10, marginTop: 5 },
-    actionButtonsContainer: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, gap: 12 },
-    actionButton: { flex: 1, flexDirection: 'row', padding: 16, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-    deleteButton: { backgroundColor: '#DC3545' },
-    saveButton: { backgroundColor: '#007BFF' },
-    disabled: { opacity: 0.5 },
-    actionButtonText: { color: '#FFFFFF', fontWeight: 'bold', fontSize: 16, marginLeft: 8 },
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' },
-    modalContent: { width: '85%', borderRadius: 20, padding: 20 },
-    modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-    categoryItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15 },
-    categoryItemText: { flex: 1, marginLeft: 15, fontSize: 16, fontWeight: '600' }
+    container: { flex: 1 },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    sectionTitle: { fontSize: 11, fontWeight: 'bold', marginBottom: 12, letterSpacing: 1.5, textTransform: 'uppercase' },
+    rowHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5, paddingHorizontal: 5 },
+    generateText: { fontSize: 12, color: '#007BFF', fontWeight: 'bold' },
+    infoRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 14, borderWidth: 1 },
+    infoLabel: { fontSize: 11, fontWeight: '700' },
+    infoValue: { fontSize: 16 },
+    innerEditBtn: { padding: 5, marginLeft: 10 },
+    actionBtn: { padding: 10, borderRadius: 10, marginLeft: 10 },
+    reminderCard: { borderRadius: 16, marginTop: 10, marginBottom: 10, borderWidth: 1 },
+    groupItem: { padding: 12, flexDirection: 'row', alignItems: 'center' },
+    divider: { height: 1, backgroundColor: '#E9ECEF', marginHorizontal: 12 },
+    verticalDivider: { width: 1, marginVertical: 10 },
+    footerButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 30, marginBottom: 50 },
+    actionButton: { flex: 0.48, height: 55, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+    buttonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15, marginLeft: 8 }
 });

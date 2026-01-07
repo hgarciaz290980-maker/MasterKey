@@ -1,3 +1,5 @@
+// app/list.tsx (CON BOTÓN INTELIGENTE)
+
 import React, { useState, useCallback } from 'react';
 import { 
     View, 
@@ -13,7 +15,6 @@ import {
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-// Importaciones de lógica
 import { getAllCredentials, Credential } from '../storage/credentials';
 import CredentialCard from './components/CredentialCard'; 
 
@@ -22,7 +23,6 @@ export default function ListScreen() {
     const { filter } = useLocalSearchParams<{ filter: string }>();
     const colorScheme = useColorScheme();
     
-    // Diccionario de colores integrado
     const isDark = colorScheme === 'dark';
     const theme = {
         background: isDark ? '#121212' : '#F8F9FA',
@@ -38,18 +38,15 @@ export default function ListScreen() {
     const [filteredData, setFilteredData] = useState<Credential[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
-  const loadData = async () => {
+    const loadData = async () => {
         try {
             const data = await getAllCredentials();
-            
-            // 1. Aplicamos el orden alfabético
             const sortedData = data.sort((a, b) => 
                 a.accountName.toLowerCase().localeCompare(b.accountName.toLowerCase())
             );
 
             let result = sortedData;
 
-            // 2. Filtro dinámico: Si el filtro no es 'all', filtramos por la categoría recibida
             if (filter && filter !== 'all') {
                 result = sortedData.filter((c: Credential) => c.category === filter);
             }
@@ -81,7 +78,6 @@ export default function ListScreen() {
     };
 
     const getTitle = () => {
-        // Títulos personalizados según el filtro
         const titles: Record<string, string> = {
             fav: "Recurrentes",
             work: "Trabajo",
@@ -91,6 +87,20 @@ export default function ListScreen() {
             entertainment: "Entretenimiento"
         };
         return titles[filter as string] || "Todas mis Cuentas";
+    };
+
+    // --- MEJORA: LÓGICA DEL BOTÓN FLOTANTE ---
+    const handleFabPress = () => {
+        // Si estamos en una categoría específica (ej. 'pet'), se la pasamos a la pantalla add
+        // Si estamos en 'all' o no hay filtro, simplemente va a /add normal
+        if (filter && filter !== 'all') {
+            router.push({
+                pathname: '/add',
+                params: { type: filter } // Pasamos el tipo para que el formulario se abra ya configurado
+            });
+        } else {
+            router.push('/add');
+        }
     };
 
     return (
@@ -103,7 +113,6 @@ export default function ListScreen() {
             }} />
             
             <View style={styles.mainContainer}>
-                {/* BUSCADOR */}
                 <View style={[styles.searchBar, { backgroundColor: theme.input, borderColor: theme.border }]}>
                     <Ionicons name="search" size={20} color={theme.subText} style={{ marginRight: 10 }} />
                     <TextInput 
@@ -121,7 +130,6 @@ export default function ListScreen() {
                     )}
                 </View>
 
-                {/* LISTADO */}
                 <FlatList 
                     data={filteredData}
                     keyExtractor={(item) => item.id}
@@ -141,21 +149,10 @@ export default function ListScreen() {
                 />
             </View>
 
-            {/* BOTÓN FLOTANTE CORREGIDO */}
-            {/* BOTÓN CON COLOR CORREGIDO Y FORZADO */}
+            {/* BOTÓN FLOTANTE INTELIGENTE */}
             <TouchableOpacity 
-                style={[
-                    styles.fab, 
-                    { 
-                        backgroundColor: '#007BFF', // Azul directo
-                        zIndex: 9999, 
-                        borderWidth: 0 // Aseguramos que no tenga bordes raros
-                    }
-                ]}
-                onPress={() => {
-                    console.log("Navegando al formulario de agregar...");
-                    router.push('/add'); 
-                }}
+                style={[styles.fab, { backgroundColor: '#007BFF', zIndex: 9999 }]}
+                onPress={handleFabPress}
                 activeOpacity={0.8}
             >
                 <Ionicons name="add" size={40} color="#FFFFFF" />
@@ -169,7 +166,6 @@ const styles = StyleSheet.create({
     mainContainer: { 
         flex: 1, 
         paddingHorizontal: 12,
-        // Reducimos el padding para que no empuje el contenido hacia abajo
         paddingTop: Platform.OS === 'android' ? 10 : 10, 
     },
     searchBar: {
@@ -185,24 +181,22 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     searchInput: { flex: 1, fontSize: 16 },
-    // Aumentamos el espacio al final de la lista para que el último item no tape al botón
     listContent: { paddingBottom: 120 }, 
     emptyState: { alignItems: 'center', marginTop: 50 },
     emptyText: { fontSize: 16 },
     fab: { 
         position: 'absolute', 
-        bottom: 30, // Lo subimos para que esté visible sobre la barra de navegación
+        bottom: 30, 
         right: 25, 
         width: 65, 
         height: 65, 
         borderRadius: 32.5, 
         justifyContent: 'center', 
         alignItems: 'center', 
-        elevation: 10, // Sombra para Android
-        shadowColor: '#000', // Sombra para iOS
+        elevation: 10, 
+        shadowColor: '#000', 
         shadowOffset: { width: 0, height: 5 },
         shadowOpacity: 0.3,
         shadowRadius: 5,
-        zIndex: 9999, // Super importante para que no se quede atrás
     },
 });

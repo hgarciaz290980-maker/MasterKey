@@ -28,12 +28,16 @@ export default function DashboardScreen() {
         card: isDark ? '#1E1E1E' : '#FFFFFF',
         subText: isDark ? '#ADB5BD' : '#6C757D',
         border: isDark ? '#333333' : '#E9ECEF',
-        primary: '#007BFF'
+        primary: '#007BFF',
+        danger: '#DC3545' // Color para el badge
     };
 
     const [isAuthenticated, setIsAuthenticated] = useState(isAppUnlocked);
     const [userName, setUserName] = useState('Usuario');
     const [showTypeSelector, setShowTypeSelector] = useState(false);
+    
+    // ESTADO PARA EL CONTADOR DE NOTIFICACIONES (Ejemplo: 3)
+    const [unreadCount, setUnreadCount] = useState(3);
 
     const categories = [
         { id: 'fav', label: 'Recurrentes', icon: 'star', color: '#FFC107' },
@@ -128,8 +132,18 @@ export default function DashboardScreen() {
                 
                 <View style={styles.headerRow}>
                     <Text style={[styles.welcomeText, { color: theme.text }]}>Hola, {userName}</Text>
-                    <TouchableOpacity onPress={() => alert('Centro de notificaciones próximamente')}>
+                    
+                    {/* CAMPANA CON CONTADOR (BADGE) */}
+                    <TouchableOpacity 
+                        style={styles.notificationBtn}
+                        onPress={() => alert('Centro de notificaciones próximamente')}
+                    >
                         <Ionicons name="notifications-outline" size={28} color={theme.text} />
+                        {unreadCount > 0 && (
+                            <View style={[styles.badge, { backgroundColor: theme.danger }]}>
+                                <Text style={styles.badgeText}>{unreadCount}</Text>
+                            </View>
+                        )}
                     </TouchableOpacity>
                 </View>
                 
@@ -172,7 +186,6 @@ export default function DashboardScreen() {
                 <Ionicons name="add" size={35} color="#FFF" />
             </TouchableOpacity>
 
-            {/* MODAL DE SELECCIÓN DE TIPO AL CREAR */}
             <Modal visible={showTypeSelector} transparent animationType="slide">
                 <TouchableOpacity 
                     style={styles.modalOverlay} 
@@ -213,6 +226,23 @@ const styles = StyleSheet.create({
     container: { padding: 20 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     welcomeText: { fontSize: 28, fontWeight: '800' },
+    
+    // ESTILOS DE LA CAMPANA Y BADGE
+    notificationBtn: { position: 'relative', padding: 5 },
+    badge: { 
+        position: 'absolute', 
+        right: 0, 
+        top: 0, 
+        minWidth: 18, 
+        height: 18, 
+        borderRadius: 9, 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        borderWidth: 2, 
+        borderColor: '#FFF' 
+    },
+    badgeText: { color: '#FFF', fontSize: 9, fontWeight: 'bold' },
+
     mainCard: { 
         flexDirection: 'row', 
         alignItems: 'center', 
@@ -257,8 +287,6 @@ const styles = StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     authButton: { marginTop: 20, padding: 15, borderRadius: 10 },
     authButtonText: { color: '#FFF', fontWeight: 'bold' },
-    
-    // ESTILOS DEL MODAL SELECTOR
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
     modalContent: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, borderWidth: 1, minHeight: 420 },
     modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' },

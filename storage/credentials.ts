@@ -1,8 +1,9 @@
+// storage/credentials.ts (ACTUALIZADO PARA MOVILIDAD)
+
 import * as SecureStore from 'expo-secure-store';
 
 const INDEX_KEY = 'bunker_index';
 
-// 1. Definimos qué es un recordatorio individual
 export interface Reminder {
     id: string;
     note: string;
@@ -21,11 +22,9 @@ export interface Credential {
     notes?: string;
     category: 'fav' | 'work' | 'personal' | 'pet' | 'mobility' | 'entertainment'; 
     hasReminder?: boolean;
-    
-    // 2. Cambiamos los campos simples por una lista de recordatorios
     reminders?: Reminder[]; 
 
-    // Mantenemos estos para compatibilidad con datos viejos (no se pierden)
+    // Mantenemos estos para compatibilidad
     reminderDate?: string;
     reminderNote?: string;
     reminderTime?: string;
@@ -41,15 +40,37 @@ export interface Credential {
     petFechaVacuna?: string;
     petFechaDesparasitacion?: string;
 
-    // --- CAMPOS PARA MOVILIDAD ---
+    // --- CAMPOS PARA MOVILIDAD (EXPANDIDOS) ---
+    // Sección 1: Datos del Vehículo
+    autoMarca?: string;
+    autoModelo?: string;
+    autoAnio?: string;
     autoPlacas?: string;
-    autoNoCircula?: string;
+
+    // Sección 2: Seguro
     autoAseguradoraNombre?: string;
-    autoAseguradoraTelefono?: string;
     autoPoliza?: string;
     autoVencimientoPoliza?: string;
-    autoVerificacion?: string;
+    autoAseguradoraTelefono?: string;
+
+    // Sección 3: Mantenimiento y Llantas
+    autoLlantaAncho?: string;  // Ejemplo: 205
+    autoLlantaPerfil?: string; // Ejemplo: 45
+    autoLlantaRin?: string;    // Ejemplo: R16
+    
+    autoNoCircula?: string;
+    autoDiaNoCircula?: string;
+    
+    autoAceiteFecha?: string;
+    autoFrenosFecha?: string;
+    autoAfinacionFecha?: string;
+    
+    autoVerificacion?: string; // Se mantiene por si se usa
 }
+
+// ... (El resto de las funciones de SecureStore se mantienen exactamente igual)
+// Asegúrate de copiar solo la interfaz o reemplazar todo el archivo si lo prefieres, 
+// ya que las funciones de guardado no cambian.
 
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substring(2);
 
@@ -73,11 +94,7 @@ export async function getAllCredentials(): Promise<Credential[]> {
 export async function getCredentialById(id: string): Promise<Credential | null> {
     const data = await SecureStore.getItemAsync(`cred_${id}`);
     if (!data) return null;
-    
     const credential = JSON.parse(data);
-
-    // LOGICA DE COMPATIBILIDAD: Si es una cuenta vieja con un solo recordatorio, 
-    // lo convertimos al nuevo formato de lista automáticamente.
     if (credential.hasReminder && !credential.reminders && credential.reminderDate) {
         credential.reminders = [{
             id: 'legacy_1',
@@ -86,7 +103,6 @@ export async function getCredentialById(id: string): Promise<Credential | null> 
             time: credential.reminderTime || '12:00 PM'
         }];
     }
-
     return credential;
 }
 
@@ -96,7 +112,7 @@ export async function createCredential(newCredential: Omit<Credential, 'id'>): P
         id, 
         ...newCredential,
         alias: newCredential.alias || '',
-        reminders: newCredential.reminders || [] // Aseguramos que inicie como lista
+        reminders: newCredential.reminders || []
     };
     await SecureStore.setItemAsync(`cred_${id}`, JSON.stringify(credentialWithId));
     const ids = await getIndex();

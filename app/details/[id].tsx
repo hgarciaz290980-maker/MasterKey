@@ -2,18 +2,18 @@ import React, { useState, useCallback } from 'react';
 import { 
     View, Text, StyleSheet, SafeAreaView, ActivityIndicator, 
     TouchableOpacity, Alert, ScrollView, Switch, 
-    useColorScheme, Linking 
+    useColorScheme, Linking, Modal
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication'; 
 
-import { getCredentialById, updateCredential, deleteCredential } from '@/storage/credentials'; 
+import { getCredentialById, updateCredential, deleteCredential, Reminder } from '@/storage/credentials'; 
 import EditCredentialModal from '../components/EditCredentialModal'; 
 
 type EditableKeys = 'accountName' | 'alias' | 'username' | 'password' | 'notes' | 'category' | 
                    'petTipo' | 'petNombre' | 'petSangre' | 'petChip' | 'petVacunas' | 
-                   'petVeterinario' | 'petVeterinarioTelefono' | 'reminderNote' | 'reminderDate' | 'reminderTime';
+                   'petVeterinario' | 'petVeterinarioTelefono';
 
 export default function CredentialDetailsScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -37,16 +37,30 @@ export default function CredentialDetailsScreen() {
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [editingField, setEditingField] = useState<EditableKeys | ''>(''); 
     const [editingLabel, setEditingLabel] = useState('');
+    
+    // Estados para la edición de recordatorios específicos
+    const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
+    const [editingReminderField, setEditingReminderField] = useState<'note' | 'date' | 'time' | ''>('');
+
     const [isUnlocked, setIsUnlocked] = useState(false); 
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+
+    const categories = [
+        { id: 'fav', label: 'Recurrentes' },
+        { id: 'personal', label: 'Personal' },
+        { id: 'work', label: 'Trabajo' },
+        { id: 'pet', label: 'Mascota' },
+        { id: 'mobility', label: 'Movilidad' },
+        { id: 'entertainment', label: 'Entretenimiento' },
+    ];
 
     const fieldLabels: Record<string, string> = {
         accountName: 'Nombre', alias: 'Alias', username: 'Usuario', password: 'Contraseña',
         notes: 'Notas', petTipo: 'Tipo de Mascota', petNombre: 'Raza',
         petSangre: 'Sangre', petChip: 'Chip', petVacunas: 'Vacunas / Alergias',
-        petVeterinario: 'Nombre del Veterinario', petVeterinarioTelefono: 'Teléfono del Veterinario',
-        reminderNote: '¿Qué debemos recordarte?', reminderDate: 'Fecha', reminderTime: 'Hora'
+        petVeterinario: 'Nombre del Veterinario', petVeterinarioTelefono: 'Teléfono del Veterinario'
     };
 
     const fetchCredential = async () => {
@@ -66,20 +80,47 @@ export default function CredentialDetailsScreen() {
         setHasUnsavedChanges(true);
     };
 
-    const generateSecurePassword = () => {
-        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
-        let password = "";
-        for (let i = 0; i < 16; i++) {
-            password += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-        updateField('password', password);
-        Alert.alert("Bunker", "Contraseña segura generada.");
+    // --- LÓGICA DE MÚLTIPLES RECORDATORIOS ---
+    const addReminder = () => {
+        const newReminder: Reminder = {
+            id: Date.now().toString(),
+            note: 'Nuevo Recordatorio',
+            date: '',
+            time: ''
+        };
+        const updatedReminders = [...(credential.reminders || []), newReminder];
+        updateField('reminders', updatedReminders);
+    };
+
+    const updateReminderField = (reminderId: string, field: 'note' | 'date' | 'time', value: string) => {
+        const updatedReminders = credential.reminders.map((r: Reminder) => 
+            r.id === reminderId ? { ...r, [field]: value } : r
+        );
+        updateField('reminders', updatedReminders);
+    };
+
+    const removeReminder = (reminderId: string) => {
+        const updatedReminders = credential.reminders.filter((r: Reminder) => r.id !== reminderId);
+        updateField('reminders', updatedReminders);
     };
 
     const handleSaveModal = (val: string) => {
-        if (!editingField) return;
-        updateField(editingField, val);
+        if (editingReminderId && editingReminderField) {
+            updateReminderField(editingReminderId, editingReminderField as any, val);
+            setEditingReminderId(null);
+            setEditingReminderField('');
+        } else if (editingField) {
+            updateField(editingField, val);
+        }
         setIsModalVisible(false);
+    };
+
+    const generateSecurePassword = () => {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+";
+        let password = "";
+        for (let i = 0; i < 16; i++) password += chars.charAt(Math.floor(Math.random() * chars.length));
+        updateField('password', password);
+        Alert.alert("Bunker", "Contraseña segura generada.");
     };
 
     const handleSaveChanges = async () => {
@@ -98,19 +139,8 @@ export default function CredentialDetailsScreen() {
         ]);
     };
 
-    const renderGroupItem = (label: string, key: EditableKeys, value: string) => (
-        <TouchableOpacity style={styles.groupItem} onPress={() => { setEditingField(key); setEditingLabel(fieldLabels[key]); setIsModalVisible(true); }}>
-            <View style={{flex: 1}}>
-                <Text style={[styles.infoLabel, { color: theme.subText }]}>{label}</Text>
-                <Text style={[styles.infoValue, { color: theme.text, textTransform: key === 'petTipo' ? 'capitalize' : 'none' }]}>{value || 'No asignado'}</Text>
-            </View>
-            <Ionicons name="pencil" size={14} color={theme.primary} />
-        </TouchableOpacity>
-    );
-
     const renderRow = (label: string, key: EditableKeys, value: string, isPassword = false) => (
         <View style={{ marginBottom: 15 }}>
-            {/* Cabecera del campo: Etiqueta y Opción de Generar si es password */}
             <View style={styles.rowHeader}>
                 <Text style={[styles.infoLabel, { color: theme.subText }]}>{label}</Text>
                 {isPassword && (
@@ -126,7 +156,6 @@ export default function CredentialDetailsScreen() {
                         {isPassword ? (showPassword ? value : '••••••••••••') : (value || 'No asignado')}
                     </Text>
                 </View>
-                
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     {isPassword && (
                         <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.innerEditBtn}>
@@ -134,15 +163,9 @@ export default function CredentialDetailsScreen() {
                         </TouchableOpacity>
                     )}
                     <TouchableOpacity onPress={() => {
-                        if (key === 'petTipo') {
-                            Alert.alert("Mascota", "Elige tipo", [
-                                { text: "Perro 🐶", onPress: () => updateField('petTipo', 'perro') },
-                                { text: "Gato 🐱", onPress: () => updateField('petTipo', 'gato') },
-                                { text: "Otro 🐾", onPress: () => updateField('petTipo', 'otro') },
-                            ]);
-                        } else {
-                            setEditingField(key); setEditingLabel(fieldLabels[key]); setIsModalVisible(true);
-                        }
+                        setEditingField(key); 
+                        setEditingLabel(fieldLabels[key]); 
+                        setIsModalVisible(true);
                     }} style={styles.innerEditBtn}>
                         <Ionicons name="pencil" size={18} color={theme.primary} />
                     </TouchableOpacity>
@@ -159,6 +182,18 @@ export default function CredentialDetailsScreen() {
             <ScrollView contentContainerStyle={{ padding: 20 }}>
                 
                 <Text style={[styles.sectionTitle, { color: theme.primary }]}>INFORMACIÓN GENERAL</Text>
+                
+                <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 8 }]}>Categoría</Text>
+                <TouchableOpacity 
+                    style={[styles.pickerTrigger, { backgroundColor: theme.card, borderColor: theme.border }]} 
+                    onPress={() => setShowCategoryPicker(true)}
+                >
+                    <Text style={[styles.pickerTriggerText, { color: theme.text }]}>
+                        {categories.find(c => c.id === credential.category)?.label || "Seleccionar categoría"}
+                    </Text>
+                    <Ionicons name="chevron-down" size={20} color={theme.primary} />
+                </TouchableOpacity>
+
                 {renderRow(credential.category === 'pet' ? 'Nombre Mascota' : 'Nombre', 'accountName', credential.accountName)}
                 {renderRow('Alias', 'alias', credential.alias)}
 
@@ -174,7 +209,6 @@ export default function CredentialDetailsScreen() {
                 {credential.category === 'pet' && (
                     <>
                         <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>FICHA MÉDICA 🐾</Text>
-                        {renderRow('Tipo', 'petTipo', credential.petTipo)}
                         {renderRow('Raza', 'petNombre', credential.petNombre)}
                         {renderRow('Sangre', 'petSangre', credential.petSangre)}
                         {renderRow('Vacunas / Alergias', 'petVacunas', credential.petVacunas)}
@@ -201,21 +235,63 @@ export default function CredentialDetailsScreen() {
                 )}
 
                 <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>RECORDATORIOS</Text>
-                <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border, justifyContent: 'space-between' }]}>
-                    <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 0 }]}>Activar recordatorio</Text>
+                <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border, justifyContent: 'space-between', marginBottom: 10 }]}>
+                    <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 0 }]}>Activar recordatorios</Text>
                     <Switch value={!!credential.hasReminder} onValueChange={(val) => updateField('hasReminder', val)} trackColor={{ false: "#767577", true: theme.primary }} />
                 </View>
 
                 {credential.hasReminder && (
-                    <View style={[styles.reminderCard, { backgroundColor: theme.card, borderColor: theme.primary, borderLeftWidth: 5 }]}>
-                        {renderGroupItem('¿Qué debemos recordarte?', 'reminderNote', credential.reminderNote)}
-                        <View style={styles.divider} />
-                        <View style={{ flexDirection: 'row' }}>
-                            <View style={{ flex: 1 }}>{renderGroupItem('Fecha', 'reminderDate', credential.reminderDate)}</View>
-                            <View style={[styles.verticalDivider, { backgroundColor: theme.border }]} />
-                            <View style={{ flex: 1 }}>{renderGroupItem('Hora', 'reminderTime', credential.reminderTime)}</View>
-                        </View>
-                    </View>
+                    <>
+                        {credential.reminders?.map((rem: Reminder, index: number) => (
+                            <View key={rem.id} style={[styles.reminderCard, { backgroundColor: theme.card, borderColor: theme.primary, borderLeftWidth: 5 }]}>
+                                <View style={styles.reminderHeader}>
+                                    <Text style={{fontSize: 10, fontWeight: 'bold', color: theme.primary}}>RECORDATORIO #{index + 1}</Text>
+                                    <TouchableOpacity onPress={() => removeReminder(rem.id)}>
+                                        <Ionicons name="close-circle" size={20} color={theme.danger} />
+                                    </TouchableOpacity>
+                                </View>
+
+                                {/* Campo Nota */}
+                                <TouchableOpacity style={styles.groupItem} onPress={() => { setEditingReminderId(rem.id); setEditingReminderField('note'); setEditingLabel('¿Qué recordar?'); setIsModalVisible(true); }}>
+                                    <View style={{flex: 1}}>
+                                        <Text style={[styles.infoLabel, { color: theme.subText }]}>¿Qué debemos recordarte?</Text>
+                                        <Text style={[styles.infoValue, { color: theme.text }]}>{rem.note || 'Toca para editar'}</Text>
+                                    </View>
+                                    <Ionicons name="pencil" size={14} color={theme.primary} />
+                                </TouchableOpacity>
+
+                                <View style={styles.divider} />
+
+                                <View style={{ flexDirection: 'row' }}>
+                                    {/* Campo Fecha */}
+                                    <TouchableOpacity style={[styles.groupItem, {flex: 1}]} onPress={() => { setEditingReminderId(rem.id); setEditingReminderField('date'); setEditingLabel('Fecha'); setIsModalVisible(true); }}>
+                                        <View style={{flex: 1}}>
+                                            <Text style={[styles.infoLabel, { color: theme.subText }]}>Fecha</Text>
+                                            <Text style={[styles.infoValue, { color: theme.text }]}>{rem.date || 'DD/MM/AAAA'}</Text>
+                                        </View>
+                                        <Ionicons name="pencil" size={14} color={theme.primary} />
+                                    </TouchableOpacity>
+
+                                    <View style={[styles.verticalDivider, { backgroundColor: theme.border }]} />
+
+                                    {/* Campo Hora */}
+                                    <TouchableOpacity style={[styles.groupItem, {flex: 1}]} onPress={() => { setEditingReminderId(rem.id); setEditingReminderField('time'); setEditingLabel('Hora'); setIsModalVisible(true); }}>
+                                        <View style={{flex: 1}}>
+                                            <Text style={[styles.infoLabel, { color: theme.subText }]}>Hora</Text>
+                                            <Text style={[styles.infoValue, { color: theme.text }]}>{rem.time || 'HH:MM AM/PM'}</Text>
+                                        </View>
+                                        <Ionicons name="pencil" size={14} color={theme.primary} />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+                        ))}
+
+                        {/* BOTÓN AGREGAR OTRO RECORDATORIO (Justo antes de los botones finales) */}
+                        <TouchableOpacity style={styles.addReminderBtn} onPress={addReminder}>
+                            <Ionicons name="add-circle-outline" size={22} color={theme.primary} />
+                            <Text style={[styles.addReminderText, { color: theme.primary }]}>Agregar otro recordatorio</Text>
+                        </TouchableOpacity>
+                    </>
                 )}
 
                 <View style={styles.footerButtons}>
@@ -230,7 +306,45 @@ export default function CredentialDetailsScreen() {
                 </View>
             </ScrollView>
 
-            <EditCredentialModal isVisible={isModalVisible} onClose={() => setIsModalVisible(false)} onSave={handleSaveModal} fieldLabel={editingLabel} initialValue={credential ? credential[editingField as any] || '' : ''} keyboardType={editingField === 'reminderDate' || editingField === 'reminderTime' || editingField === 'petVeterinarioTelefono' ? 'numeric' : 'default'} />
+            <Modal visible={showCategoryPicker} transparent animationType="fade">
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowCategoryPicker(false)}>
+                    <TouchableOpacity activeOpacity={1} style={{ width: '100%' }}>
+                        <View style={[styles.modalContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <Text style={[styles.modalTitle, { color: theme.text }]}>Seleccionar Categoría</Text>
+                            {categories.map((item) => (
+                                <TouchableOpacity 
+                                    key={item.id} 
+                                    style={[styles.modalItem, { borderBottomColor: theme.border }]}
+                                    onPress={() => { updateField('category', item.id); setShowCategoryPicker(false); }}
+                                >
+                                    <Text style={[styles.modalItemText, { color: theme.text }]}>{item.label}</Text>
+                                    {credential.category === item.id && <Ionicons name="checkmark-circle" size={22} color={theme.primary} />}
+                                </TouchableOpacity>
+                            ))}
+                            <TouchableOpacity style={{ marginTop: 15, padding: 10, alignItems: 'center' }} onPress={() => setShowCategoryPicker(false)}>
+                                <Text style={{ color: theme.danger, fontWeight: 'bold' }}>Cancelar</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </TouchableOpacity>
+                </TouchableOpacity>
+            </Modal>
+
+            <EditCredentialModal 
+                isVisible={isModalVisible} 
+                onClose={() => setIsModalVisible(false)} 
+                onSave={handleSaveModal} 
+                fieldLabel={editingLabel} 
+                initialValue={
+                    editingReminderId 
+                    ? credential.reminders.find((r: any) => r.id === editingReminderId)?.[editingReminderField] || ''
+                    : (credential ? credential[editingField as any] || '' : '')
+                } 
+                keyboardType={
+                    editingField === 'petVeterinarioTelefono' || 
+                    editingReminderField === 'date' || 
+                    editingReminderField === 'time' ? 'numeric' : 'default'
+                } 
+            />
         </SafeAreaView>
     );
 }
@@ -246,11 +360,21 @@ const styles = StyleSheet.create({
     infoValue: { fontSize: 16 },
     innerEditBtn: { padding: 5, marginLeft: 10 },
     actionBtn: { padding: 10, borderRadius: 10, marginLeft: 10 },
-    reminderCard: { borderRadius: 16, marginTop: 10, marginBottom: 10, borderWidth: 1 },
+    reminderCard: { borderRadius: 16, marginTop: 10, marginBottom: 10, borderWidth: 1, overflow: 'hidden' },
+    reminderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingTop: 10 },
     groupItem: { padding: 12, flexDirection: 'row', alignItems: 'center' },
     divider: { height: 1, backgroundColor: '#E9ECEF', marginHorizontal: 12 },
     verticalDivider: { width: 1, marginVertical: 10 },
-    footerButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 30, marginBottom: 50 },
+    addReminderBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, marginTop: 5, marginBottom: 20 },
+    addReminderText: { fontWeight: 'bold', marginLeft: 8, fontSize: 14 },
+    footerButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, marginBottom: 50 },
     actionButton: { flex: 0.48, height: 55, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
-    buttonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15, marginLeft: 8 }
+    buttonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15, marginLeft: 8 },
+    pickerTrigger: { padding: 15, borderRadius: 10, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    pickerTriggerText: { fontSize: 16 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 30 },
+    modalContent: { borderRadius: 20, padding: 20, borderWidth: 1 },
+    modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
+    modalItem: { paddingVertical: 15, borderBottomWidth: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    modalItemText: { fontSize: 16 }
 });

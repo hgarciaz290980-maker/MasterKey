@@ -1,7 +1,14 @@
-// storage/credentials.ts
 import * as SecureStore from 'expo-secure-store';
 
 const INDEX_KEY = 'bunker_index';
+
+// 1. Definimos qué es un recordatorio individual
+export interface Reminder {
+    id: string;
+    note: string;
+    date: string;
+    time: string;
+}
 
 export interface Credential {
     id: string;
@@ -14,25 +21,31 @@ export interface Credential {
     notes?: string;
     category: 'fav' | 'work' | 'personal' | 'pet' | 'mobility' | 'entertainment'; 
     hasReminder?: boolean;
+    
+    // 2. Cambiamos los campos simples por una lista de recordatorios
+    reminders?: Reminder[]; 
+
+    // Mantenemos estos para compatibilidad con datos viejos (no se pierden)
     reminderDate?: string;
     reminderNote?: string;
+    reminderTime?: string;
 
-    // --- NUEVOS CAMPOS PARA MASCOTAS (PET) ---
+    // --- CAMPOS PARA MASCOTAS ---
     petRaza?: string;
     petEdad?: string;
     petChip?: string;
     petEspecie?: 'Perro' | 'Gato' | 'Otro';
     petTipoSangre?: string;
     petVeterinarioNombre?: string;
-    petVeterinarioTelefono?: string; // <--- LISTO PARA LLAMADA DIRECTA
+    petVeterinarioTelefono?: string;
     petFechaVacuna?: string;
     petFechaDesparasitacion?: string;
 
-    // --- NUEVOS CAMPOS PARA MOVILIDAD ---
+    // --- CAMPOS PARA MOVILIDAD ---
     autoPlacas?: string;
     autoNoCircula?: string;
     autoAseguradoraNombre?: string;
-    autoAseguradoraTelefono?: string; // <--- LISTO PARA LLAMADA DIRECTA
+    autoAseguradoraTelefono?: string;
     autoPoliza?: string;
     autoVencimientoPoliza?: string;
     autoVerificacion?: string;
@@ -59,7 +72,22 @@ export async function getAllCredentials(): Promise<Credential[]> {
 
 export async function getCredentialById(id: string): Promise<Credential | null> {
     const data = await SecureStore.getItemAsync(`cred_${id}`);
-    return data ? JSON.parse(data) : null;
+    if (!data) return null;
+    
+    const credential = JSON.parse(data);
+
+    // LOGICA DE COMPATIBILIDAD: Si es una cuenta vieja con un solo recordatorio, 
+    // lo convertimos al nuevo formato de lista automáticamente.
+    if (credential.hasReminder && !credential.reminders && credential.reminderDate) {
+        credential.reminders = [{
+            id: 'legacy_1',
+            note: credential.reminderNote || 'Recordatorio',
+            date: credential.reminderDate,
+            time: credential.reminderTime || '12:00 PM'
+        }];
+    }
+
+    return credential;
 }
 
 export async function createCredential(newCredential: Omit<Credential, 'id'>): Promise<Credential> {
@@ -67,7 +95,8 @@ export async function createCredential(newCredential: Omit<Credential, 'id'>): P
     const credentialWithId: Credential = { 
         id, 
         ...newCredential,
-        alias: newCredential.alias || '' // Aseguramos que el alias exista
+        alias: newCredential.alias || '',
+        reminders: newCredential.reminders || [] // Aseguramos que inicie como lista
     };
     await SecureStore.setItemAsync(`cred_${id}`, JSON.stringify(credentialWithId));
     const ids = await getIndex();
@@ -77,7 +106,6 @@ export async function createCredential(newCredential: Omit<Credential, 'id'>): P
 }
 
 export async function updateCredential(updatedCredential: Credential): Promise<void> {
-    // ESTA ES LA CLAVE: Forzamos el guardado en la llave específica
     await SecureStore.setItemAsync(`cred_${updatedCredential.id}`, JSON.stringify(updatedCredential));
 }
 
@@ -87,21 +115,15 @@ export async function deleteCredential(id: string): Promise<void> {
     await SecureStore.setItemAsync(INDEX_KEY, JSON.stringify(ids.filter(i => i !== id)));
 }
 
-// Función añadida para resolver el error en BackupManager.tsx
 export async function saveAllCredentials(credentials: Credential[]): Promise<void> {
-    // 1. Limpiamos las llaves individuales antiguas basándonos en el índice actual
     const oldIds = await getIndex();
     for (const id of oldIds) {
         await SecureStore.deleteItemAsync(`cred_${id}`);
     }
-
-    // 2. Guardamos cada credencial de la lista nueva por separado
     const newIds: string[] = [];
     for (const cred of credentials) {
         await SecureStore.setItemAsync(`cred_${cred.id}`, JSON.stringify(cred));
         newIds.push(cred.id);
     }
-
-    // 3. Actualizamos el índice con los nuevos IDs
     await SecureStore.setItemAsync(INDEX_KEY, JSON.stringify(newIds));
 }

@@ -1,53 +1,43 @@
 import { Stack } from 'expo-router';
-import * as Notifications from 'expo-notifications';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 
-// Configuración protegida
+// Bypass de seguridad: Cargamos la librería solo si el módulo nativo existe
+let Notifications: any;
 try {
+  Notifications = require('expo-notifications');
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
-    } as Notifications.NotificationBehavior),
+    } as any),
   });
 } catch (e) {
-  console.warn("Módulo de notificaciones no disponible aún");
+  console.warn("Módulo de notificaciones no disponible en este entorno");
 }
 
-export default function RootLayout() {
+export default function TabLayout() {
   useEffect(() => {
     async function requestPermissions() {
       try {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        if (existingStatus !== 'granted') {
-          await Notifications.requestPermissionsAsync();
-        }
-        
-        if (Platform.OS === 'android') {
-          await Notifications.setNotificationChannelAsync('default', {
-            name: 'default',
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#FF231F7C',
-          });
+        if (Platform.OS !== 'web' && Notifications) {
+          const { status: existingStatus } = await Notifications.getPermissionsAsync();
+          if (existingStatus !== 'granted') {
+            await Notifications.requestPermissionsAsync();
+          }
         }
       } catch (error) {
-        console.log("Notificaciones nativas no listas");
+        console.log("Notificaciones no inicializadas (Entorno Expo Go)");
       }
     }
+    
     requestPermissions();
   }, []);
 
   return (
-    <Stack screenOptions={{ 
-      headerShown: true,
-      headerStyle: { backgroundColor: '#F8F9FA' },
-      headerShadowVisible: false,
-    }}>
-        {/* Aseguramos que las rutas internas se manejen correctamente */}
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="index" />
     </Stack>
   );
 }

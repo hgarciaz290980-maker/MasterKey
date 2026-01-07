@@ -29,14 +29,13 @@ export default function DashboardScreen() {
         subText: isDark ? '#ADB5BD' : '#6C757D',
         border: isDark ? '#333333' : '#E9ECEF',
         primary: '#007BFF',
-        danger: '#DC3545' // Color para el badge
+        danger: '#DC3545'
     };
 
     const [isAuthenticated, setIsAuthenticated] = useState(isAppUnlocked);
     const [userName, setUserName] = useState('Usuario');
     const [showTypeSelector, setShowTypeSelector] = useState(false);
     
-    // ESTADO PARA EL CONTADOR DE NOTIFICACIONES (Ejemplo: 3)
     const [unreadCount, setUnreadCount] = useState(3);
 
     const categories = [
@@ -102,7 +101,7 @@ export default function DashboardScreen() {
 
     const handleSelectCategory = (type: string) => {
         setShowTypeSelector(false);
-        router.push(`/add?type=${type}`);
+        router.push(`/add?type=${type}` as any);
     };
 
     if (!isAuthenticated) {
@@ -133,10 +132,9 @@ export default function DashboardScreen() {
                 <View style={styles.headerRow}>
                     <Text style={[styles.welcomeText, { color: theme.text }]}>Hola, {userName}</Text>
                     
-                    {/* CAMPANA CON CONTADOR (BADGE) */}
                     <TouchableOpacity 
                         style={styles.notificationBtn}
-                        onPress={() => alert('Centro de notificaciones próximamente')}
+                        onPress={() => router.push('/notifications' as any)}
                     >
                         <Ionicons name="notifications-outline" size={28} color={theme.text} />
                         {unreadCount > 0 && (
@@ -151,14 +149,14 @@ export default function DashboardScreen() {
                     <TouchableOpacity 
                         key={cat.id}
                         style={[styles.mainCard, { backgroundColor: theme.card }]} 
-                        onPress={() => router.push(`/list?filter=${cat.id}`)}
+                        onPress={() => router.push(`/list?filter=${cat.id}` as any)}
                     >
                         <Ionicons name={cat.icon as any} size={25} color={cat.color} />
                         <Text style={[styles.cardTitle, { color: theme.text }]}> {cat.label}</Text>
                     </TouchableOpacity>
                 ))}
 
-                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, marginBottom: 30 }]} onPress={() => router.push('/list?filter=all')}>
+                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, marginBottom: 30 }]} onPress={() => router.push('/list?filter=all' as any)}>
                     <Ionicons name="key" size={25} color={theme.primary} />
                     <Text style={[styles.cardTitle, { color: theme.text }]}> Todas mis cuentas</Text>
                 </TouchableOpacity>
@@ -226,8 +224,6 @@ const styles = StyleSheet.create({
     container: { padding: 20 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     welcomeText: { fontSize: 28, fontWeight: '800' },
-    
-    // ESTILOS DE LA CAMPANA Y BADGE
     notificationBtn: { position: 'relative', padding: 5 },
     badge: { 
         position: 'absolute', 
@@ -242,7 +238,6 @@ const styles = StyleSheet.create({
         borderColor: '#FFF' 
     },
     badgeText: { color: '#FFF', fontSize: 9, fontWeight: 'bold' },
-
     mainCard: { 
         flexDirection: 'row', 
         alignItems: 'center', 

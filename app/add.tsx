@@ -1,16 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     View, Text, StyleSheet, TextInput, TouchableOpacity, 
     ScrollView, Alert, SafeAreaView, Modal 
 } from 'react-native';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createCredential, Credential } from '../storage/credentials';
-// IMPORTACIÓN DEL NUEVO FORMULARIO
 import SpecialCategoryForm from './components/SpecialCategoryForm';
 
 export default function AddCredentialScreen() {
     const router = useRouter();
+    const { type } = useLocalSearchParams<{ type: string }>();
     
     const [accountName, setAccountName] = useState('');
     const [alias, setAlias] = useState('');
@@ -18,11 +18,11 @@ export default function AddCredentialScreen() {
     const [password, setPassword] = useState('');
     const [websiteUrl, setWebsiteUrl] = useState('');
     const [notes, setNotes] = useState('');
-    const [category, setCategory] = useState<Credential['category']>('personal');
     
-    // ESTADO PARA CAMPOS ESPECIALES (Mascotas/Movilidad)
+    // Inicializamos con el tipo que viene del Dashboard
+    const [category, setCategory] = useState<Credential['category']>((type as any) || 'personal');
+    
     const [specialData, setSpecialData] = useState<any>({});
-    
     const [showPassword, setShowPassword] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
 
@@ -42,7 +42,6 @@ export default function AddCredentialScreen() {
         setPassword(res);
     };
 
-    // Función para actualizar datos especiales
     const handleSpecialChange = (field: string, value: string) => {
         setSpecialData((prev: any) => ({ ...prev, [field]: value }));
     };
@@ -57,8 +56,8 @@ export default function AddCredentialScreen() {
             await createCredential({
                 accountName,
                 alias,
-                username: username || 'N/A', 
-                password: password || 'N/A',
+                username: (category === 'pet' || category === 'mobility') ? 'N/A' : (username || 'N/A'), 
+                password: (category === 'pet' || category === 'mobility') ? 'N/A' : (password || 'N/A'),
                 category,
                 websiteUrl,
                 notes,
@@ -74,30 +73,26 @@ export default function AddCredentialScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <Stack.Screen options={{ title: "Nueva Cuenta", headerShown: true }} />
+            <Stack.Screen options={{ 
+                title: `Nuevo: ${categories.find(c => c.id === category)?.label}`, 
+                headerShown: true 
+            }} />
             <ScrollView contentContainerStyle={styles.scroll}>
                 
                 <Text style={styles.label}>Nombre de la cuenta *</Text>
-                <TextInput style={styles.input} value={accountName} onChangeText={setAccountName} placeholder="Ej: Netflix" placeholderTextColor="#666" />
+                <TextInput style={styles.input} value={accountName} onChangeText={setAccountName} placeholder="Ej: Netflix / Nombre Mascota" placeholderTextColor="#666" />
 
                 <Text style={styles.label}>Alias de la cuenta (Opcional)</Text>
-                <TextInput 
-                    style={styles.input} 
-                    value={alias} 
-                    onChangeText={setAlias} 
-                    placeholder="Ej: Mi cuenta principal" 
-                    placeholderTextColor="#666" 
-                />
+                <TextInput style={styles.input} value={alias} onChangeText={setAlias} placeholder="Ej: Mi cuenta principal" placeholderTextColor="#666" />
 
-                <Text style={styles.label}>Categoría</Text>
+                <Text style={styles.label}>Categoría Seleccionada</Text>
                 <TouchableOpacity style={styles.pickerTrigger} onPress={() => setShowPicker(true)}>
                     <Text style={styles.pickerTriggerText}>
-                        {categories.find(c => c.id === category)?.label || "Seleccionar categoría"}
+                        {categories.find(c => c.id === category)?.label}
                     </Text>
                     <Ionicons name="chevron-down" size={20} color="#007BFF" />
                 </TouchableOpacity>
 
-                {/* --- SECCIÓN DINÁMICA DE MASCOTAS / MOVILIDAD --- */}
                 <SpecialCategoryForm 
                     category={category}
                     formData={specialData}
@@ -105,7 +100,7 @@ export default function AddCredentialScreen() {
                     isDark={true}
                 />
 
-                {/* Diseño corregido de Usuario y Contraseña */}
+                {/* OCULTAR CAMPOS DE ACCESO SI ES MASCOTA O MOVILIDAD */}
                 {category !== 'pet' && category !== 'mobility' && (
                     <>
                         <Text style={styles.label}>Usuario / Email *</Text>
@@ -119,13 +114,7 @@ export default function AddCredentialScreen() {
                         </View>
                         
                         <View style={styles.passwordContainer}>
-                            <TextInput 
-                                style={styles.passwordInput} 
-                                value={password} 
-                                onChangeText={setPassword} 
-                                secureTextEntry={!showPassword} 
-                                placeholderTextColor="#666"
-                            />
+                            <TextInput style={styles.passwordInput} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} placeholderTextColor="#666" />
                             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.innerIcon}>
                                 <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#007BFF" />
                             </TouchableOpacity>
@@ -133,17 +122,11 @@ export default function AddCredentialScreen() {
                     </>
                 )}
 
-                <Text style={styles.label}>Sitio Web</Text>
+                <Text style={styles.label}>Sitio Web / URL</Text>
                 <TextInput style={styles.input} value={websiteUrl} onChangeText={setWebsiteUrl} placeholder="www.ejemplo.com" placeholderTextColor="#666" />
 
                 <Text style={styles.label}>Notas adicionales</Text>
-                <TextInput 
-                    style={[styles.input, { height: 100, textAlignVertical: 'top' }]} 
-                    value={notes} 
-                    onChangeText={setNotes} 
-                    multiline 
-                    placeholderTextColor="#666" 
-                />
+                <TextInput style={[styles.input, { height: 100, textAlignVertical: 'top' }]} value={notes} onChangeText={setNotes} multiline placeholderTextColor="#666" />
 
                 <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                     <Text style={styles.saveButtonText}>Guardar Cuenta</Text>
@@ -151,19 +134,11 @@ export default function AddCredentialScreen() {
             </ScrollView>
 
             <Modal visible={showPicker} transparent animationType="fade">
-                <TouchableOpacity 
-                    style={styles.modalOverlay} 
-                    activeOpacity={1} 
-                    onPress={() => setShowPicker(false)}
-                >
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowPicker(false)}>
                     <View style={styles.modalContent}>
                         <Text style={styles.modalTitle}>Seleccionar Categoría</Text>
                         {categories.map((item) => (
-                            <TouchableOpacity 
-                                key={item.id} 
-                                style={styles.modalItem}
-                                onPress={() => { setCategory(item.id as any); setShowPicker(false); }}
-                            >
+                            <TouchableOpacity key={item.id} style={styles.modalItem} onPress={() => { setCategory(item.id as any); setShowPicker(false); }}>
                                 <Text style={styles.modalItemText}>{item.label}</Text>
                                 {category === item.id && <Ionicons name="checkmark-circle" size={22} color="#007BFF" />}
                             </TouchableOpacity>
@@ -180,22 +155,12 @@ const styles = StyleSheet.create({
     scroll: { padding: 20 },
     label: { color: '#ADB5BD', fontSize: 14, marginBottom: 8, marginTop: 15, fontWeight: 'bold' },
     input: { backgroundColor: '#1E1E1E', color: '#FFF', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#333', marginBottom: 5 },
-    
-    // NUEVOS ESTILOS PARA CONTRASEÑA UNIFICADA
     passwordHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15, marginBottom: 8 },
     labelPassword: { color: '#ADB5BD', fontSize: 14, fontWeight: 'bold' },
     generateText: { color: '#007BFF', fontSize: 12, fontWeight: 'bold' },
-    passwordContainer: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        backgroundColor: '#1E1E1E', 
-        borderRadius: 10, 
-        borderWidth: 1, 
-        borderColor: '#333' 
-    },
+    passwordContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1E1E1E', borderRadius: 10, borderWidth: 1, borderColor: '#333' },
     passwordInput: { flex: 1, color: '#FFF', padding: 15, fontSize: 16 },
     innerIcon: { paddingHorizontal: 15 },
-
     pickerTrigger: { backgroundColor: '#1E1E1E', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#333', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     pickerTriggerText: { color: '#FFF', fontSize: 16 },
     saveButton: { backgroundColor: '#007BFF', padding: 18, borderRadius: 12, marginTop: 40, alignItems: 'center', marginBottom: 50 },

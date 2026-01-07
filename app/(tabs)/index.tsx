@@ -2,7 +2,7 @@ import * as AuthSession from 'expo-auth-session';
 import React, { useState, useEffect } from 'react'; 
 import { 
     View, Text, StyleSheet, TouchableOpacity, SafeAreaView, 
-    ScrollView, useColorScheme, Platform
+    ScrollView, useColorScheme, Platform, Modal
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router'; 
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +33,16 @@ export default function DashboardScreen() {
 
     const [isAuthenticated, setIsAuthenticated] = useState(isAppUnlocked);
     const [userName, setUserName] = useState('Usuario');
+    const [showTypeSelector, setShowTypeSelector] = useState(false);
+
+    const categories = [
+        { id: 'fav', label: 'Recurrentes', icon: 'star', color: '#FFC107' },
+        { id: 'personal', label: 'Personal', icon: 'person', color: '#20c997' },
+        { id: 'work', label: 'Trabajo', icon: 'briefcase', color: '#6f42c1' },
+        { id: 'pet', label: 'Mascota', icon: 'paw', color: '#fd7e14' },
+        { id: 'mobility', label: 'Movilidad', icon: 'car-sport', color: '#dc3545' },
+        { id: 'entertainment', label: 'Entretenimiento', icon: 'play-circle', color: '#e83e8c' },
+    ];
 
    const [request, response, promptAsync] = Google.useAuthRequest({
         androidClientId: "619201497268-vcop7li7m3jdvib2je642d54tmpktkad.apps.googleusercontent.com",
@@ -86,6 +96,11 @@ export default function DashboardScreen() {
         if (!isAppUnlocked) authenticate();
     }, []); 
 
+    const handleSelectCategory = (type: string) => {
+        setShowTypeSelector(false);
+        router.push(`/add?type=${type}`);
+    };
+
     if (!isAuthenticated) {
         return (
             <View style={[styles.centered, { backgroundColor: theme.background }]}>
@@ -118,36 +133,16 @@ export default function DashboardScreen() {
                     </TouchableOpacity>
                 </View>
                 
-                {/* CATEGORÍAS */}
-                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=fav')}>
-                    <Ionicons name="star" size={25} color="#FFC107" />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}> Recurrentes</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=personal')}>
-                    <Ionicons name="person" size={25} color="#20c997" />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}> Personal</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=work')}>
-                    <Ionicons name="briefcase" size={25} color="#6f42c1" />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}> Trabajo</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=pet')}>
-                    <Ionicons name="paw" size={25} color="#fd7e14" />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}> Mascota</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=mobility')}>
-                    <Ionicons name="car-sport" size={25} color="#dc3545" />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}> Movilidad</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card }]} onPress={() => router.push('/list?filter=entertainment')}>
-                    <Ionicons name="play-circle" size={25} color="#e83e8c" />
-                    <Text style={[styles.cardTitle, { color: theme.text }]}> Entretenimiento</Text>
-                </TouchableOpacity>
+                {categories.map((cat) => (
+                    <TouchableOpacity 
+                        key={cat.id}
+                        style={[styles.mainCard, { backgroundColor: theme.card }]} 
+                        onPress={() => router.push(`/list?filter=${cat.id}`)}
+                    >
+                        <Ionicons name={cat.icon as any} size={25} color={cat.color} />
+                        <Text style={[styles.cardTitle, { color: theme.text }]}> {cat.label}</Text>
+                    </TouchableOpacity>
+                ))}
 
                 <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, marginBottom: 30 }]} onPress={() => router.push('/list?filter=all')}>
                     <Ionicons name="key" size={25} color={theme.primary} />
@@ -170,13 +165,45 @@ export default function DashboardScreen() {
                 </View>
             </ScrollView>
 
-            {/* BOTÓN FLOTANTE CORREGIDO SIN EL PUNTO */}
             <TouchableOpacity 
                 style={[styles.fab, { backgroundColor: theme.primary }]} 
-                onPress={() => router.push('/add')}
+                onPress={() => setShowTypeSelector(true)}
             >
                 <Ionicons name="add" size={35} color="#FFF" />
             </TouchableOpacity>
+
+            {/* MODAL DE SELECCIÓN DE TIPO AL CREAR */}
+            <Modal visible={showTypeSelector} transparent animationType="slide">
+                <TouchableOpacity 
+                    style={styles.modalOverlay} 
+                    activeOpacity={1} 
+                    onPress={() => setShowTypeSelector(false)}
+                >
+                    <View style={[styles.modalContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                        <Text style={[styles.modalTitle, { color: theme.text }]}>¿Qué deseas agregar?</Text>
+                        <View style={styles.gridContainer}>
+                            {categories.map((cat) => (
+                                <TouchableOpacity 
+                                    key={cat.id} 
+                                    style={styles.gridItem}
+                                    onPress={() => handleSelectCategory(cat.id)}
+                                >
+                                    <View style={[styles.iconCircle, { backgroundColor: cat.color + '20' }]}>
+                                        <Ionicons name={cat.icon as any} size={28} color={cat.color} />
+                                    </View>
+                                    <Text style={[styles.gridLabel, { color: theme.text }]}>{cat.label}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        <TouchableOpacity 
+                            style={styles.cancelButton} 
+                            onPress={() => setShowTypeSelector(false)}
+                        >
+                            <Text style={{ color: '#DC3545', fontWeight: 'bold' }}>Cancelar</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -229,5 +256,15 @@ const styles = StyleSheet.create({
     },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     authButton: { marginTop: 20, padding: 15, borderRadius: 10 },
-    authButtonText: { color: '#FFF', fontWeight: 'bold' }
+    authButtonText: { color: '#FFF', fontWeight: 'bold' },
+    
+    // ESTILOS DEL MODAL SELECTOR
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
+    modalContent: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, borderWidth: 1, minHeight: 420 },
+    modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' },
+    gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+    gridItem: { width: '30%', alignItems: 'center', marginBottom: 25 },
+    iconCircle: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+    gridLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
+    cancelButton: { marginTop: 10, padding: 15, alignItems: 'center' }
 });

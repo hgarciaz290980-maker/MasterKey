@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; 
 import { 
     View, Text, StyleSheet, FlatList, SafeAreaView, 
     TouchableOpacity, useColorScheme 
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface AppNotification {
     id: string;
@@ -29,11 +30,18 @@ export default function NotificationsScreen() {
         border: isDark ? '#333333' : '#E9ECEF',
     };
 
-    const [notifications] = useState<AppNotification[]>([
-        { id: '1', title: 'Vacuna de Max', description: 'Hoy toca la vacuna contra la rabia.', date: 'Hoy, 10:00 AM', type: 'pet', isRead: false },
-        { id: '2', title: 'Seguro del Auto', description: 'Tu póliza vence en 3 días.', date: 'Ayer', type: 'mobility', isRead: false },
-        { id: '3', title: 'Backup Completado', description: 'Tu respaldo en Google Drive se realizó con éxito.', date: '5 Ene', type: 'general', isRead: true },
-    ]);
+    // 1. Iniciamos con lista vacía para eliminar las notificaciones "fantasma"
+    const [notifications, setNotifications] = useState<AppNotification[]>([]);
+
+    // 2. Lógica para marcar como leídas al entrar
+    useEffect(() => {
+        const markAsRead = async () => {
+            // Aquí en el futuro cargaremos las notificaciones reales de la base de datos
+            // Por ahora, simulamos que al entrar el contador de la campanita debe resetearse
+            await AsyncStorage.setItem('unread_notifications_count', '0');
+        };
+        markAsRead();
+    }, []);
 
     const getIcon = (type: string) => {
         switch(type) {
@@ -58,10 +66,11 @@ export default function NotificationsScreen() {
                 data={notifications}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={{ padding: 20 }}
+                // Este componente se muestra cuando no hay nada (que será ahora)
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
                         <Ionicons name="notifications-off-outline" size={60} color={theme.border} />
-                        <Text style={[styles.emptyText, { color: theme.subText }]}>Sin notificaciones.</Text>
+                        <Text style={[styles.emptyText, { color: theme.subText }]}>No tienes notificaciones pendientes.</Text>
                     </View>
                 }
                 renderItem={({ item }) => {
@@ -89,7 +98,7 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
     emptyState: { alignItems: 'center', marginTop: 100 },
-    emptyText: { fontSize: 16, marginTop: 15 },
+    emptyText: { fontSize: 16, marginTop: 15, textAlign: 'center' },
     notifCard: { flexDirection: 'row', padding: 15, borderRadius: 16, marginBottom: 12, borderWidth: 1, alignItems: 'center' },
     iconBadge: { width: 45, height: 45, borderRadius: 22.5, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
     textContent: { flex: 1 },

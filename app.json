@@ -17,7 +17,11 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.mkpro01.masterkey"
+      "package": "com.mkpro01.masterkey",
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "SCHEDULE_EXACT_ALARM"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -33,6 +37,13 @@
           "projectIds": [
             "6020aa16-6d5d-4544-ab3f-b49cba01b3b1"
           ]
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#007BFF"
         }
       ]
     ],

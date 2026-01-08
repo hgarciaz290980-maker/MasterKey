@@ -6,13 +6,48 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications'; 
+import * as Device from 'expo-device'; 
+
+// CONFIGURACIÓN DEL MANEJADOR (SOLUCIÓN DEFINITIVA CON TYPE ASSERTION)
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+    } as any), // El "as any" ignora las validaciones estrictas de TS que causan el error
+});
 
 export default function OnboardingScreen() {
     const router = useRouter();
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [emergencyId, setEmergencyId] = useState('');
-    const [showPassword, setShowPassword] = useState(false); // Estado para el ojo
+    const [showPassword, setShowPassword] = useState(false);
+
+    const requestNotificationPermissions = async () => {
+        if (!Device.isDevice) {
+            console.log('Las notificaciones requieren un dispositivo físico');
+            return false;
+        }
+
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        
+        if (existingStatus !== 'granted') {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+        }
+
+        if (finalStatus !== 'granted') {
+            Alert.alert(
+                "Permisos requeridos", 
+                "Para que los recordatorios funcionen, necesitas habilitar las notificaciones en los ajustes del celular."
+            );
+            return false;
+        }
+        return true;
+    };
 
     const handleFinish = async () => {
         if (!name || !email || !emergencyId) {
@@ -21,6 +56,8 @@ export default function OnboardingScreen() {
         }
 
         try {
+            await requestNotificationPermissions();
+
             await AsyncStorage.setItem('user_name', name);
             await AsyncStorage.setItem('user_email', email);
             await AsyncStorage.setItem('emergency_id', emergencyId);
@@ -34,7 +71,6 @@ export default function OnboardingScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            {/* KeyboardAvoidingView evita que el teclado tape los campos */}
             <KeyboardAvoidingView 
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
                 style={{ flex: 1 }}
@@ -51,6 +87,7 @@ export default function OnboardingScreen() {
                             placeholder="¿Cómo quieres que te llame?" 
                             value={name}
                             onChangeText={setName}
+                            placeholderTextColor="#ADB5BD"
                         />
 
                         <Text style={styles.label}>Correo de Respaldo (Google)</Text>
@@ -61,6 +98,7 @@ export default function OnboardingScreen() {
                             autoCapitalize="none"
                             value={email}
                             onChangeText={setEmail}
+                            placeholderTextColor="#ADB5BD"
                         />
 
                         <Text style={styles.label}>ID de Emergencia (Clave única)</Text>
@@ -68,11 +106,11 @@ export default function OnboardingScreen() {
                             <TextInput 
                                 style={styles.passwordInput} 
                                 placeholder="Código secreto" 
-                                secureTextEntry={!showPassword} // Aquí se activan los puntos
+                                secureTextEntry={!showPassword} 
                                 value={emergencyId}
                                 onChangeText={setEmergencyId}
+                                placeholderTextColor="#ADB5BD"
                             />
-                            {/* Botón del ojo */}
                             <TouchableOpacity 
                                 style={styles.eyeIcon} 
                                 onPress={() => setShowPassword(!showPassword)}
@@ -102,8 +140,7 @@ const styles = StyleSheet.create({
     title: { fontSize: 28, fontWeight: '800', color: '#212529', marginTop: 20 },
     subtitle: { fontSize: 16, color: '#6C757D', marginBottom: 30 },
     label: { fontSize: 14, fontWeight: '700', marginBottom: 8, marginTop: 15 },
-    input: { backgroundColor: '#FFF', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#E9ECEF', fontSize: 16 },
-    // Estilos nuevos para el campo con ojo
+    input: { backgroundColor: '#FFF', padding: 15, borderRadius: 12, borderWidth: 1, borderColor: '#E9ECEF', fontSize: 16, color: '#212529' },
     passwordContainer: { 
         flexDirection: 'row', 
         alignItems: 'center', 
@@ -112,9 +149,8 @@ const styles = StyleSheet.create({
         borderWidth: 1, 
         borderColor: '#E9ECEF' 
     },
-    passwordInput: { flex: 1, padding: 15, fontSize: 16, color: '#212529'},
+    passwordInput: { flex: 1, padding: 15, fontSize: 16, color: '#212529' },
     eyeIcon: { paddingRight: 15 },
-    
     button: { backgroundColor: '#007BFF', padding: 18, borderRadius: 15, marginTop: 40, alignItems: 'center' },
     buttonText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' }
 });

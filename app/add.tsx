@@ -7,6 +7,7 @@ import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { createCredential, Credential } from '../storage/credentials';
 import SpecialCategoryForm from './components/SpecialCategoryForm';
+import * as Notifications from 'expo-notifications';
 
 export default function AddCredentialScreen() {
     const router = useRouter();
@@ -19,7 +20,6 @@ export default function AddCredentialScreen() {
     const [websiteUrl, setWebsiteUrl] = useState('');
     const [notes, setNotes] = useState('');
     
-    // Inicializamos con el tipo que viene del Dashboard
     const [category, setCategory] = useState<Credential['category']>((type as any) || 'personal');
     
     const [specialData, setSpecialData] = useState<any>({});
@@ -34,6 +34,34 @@ export default function AddCredentialScreen() {
         { id: 'mobility', label: 'Movilidad' },
         { id: 'entertainment', label: 'Entretenimiento' },
     ];
+
+    // FUNCIÓN CORREGIDA PARA EL TRIGGER DE NOTIFICACIÓN
+    const scheduleCategoryNotification = async (name: string, data: any) => {
+        try {
+            const dateValue = data.nextVaccine || data.insuranceExpiry || data.serviceDate;
+            
+            if (dateValue) {
+                const triggerDate = new Date(dateValue);
+                
+                if (triggerDate.getTime() > Date.now()) {
+                    await Notifications.scheduleNotificationAsync({
+                        content: {
+                            title: `🚨 Recordatorio Bunker-K: ${name}`,
+                            body: `Tienes un compromiso pendiente agendado para hoy.`,
+                            sound: true,
+                            priority: Notifications.AndroidNotificationPriority.HIGH,
+                        },
+                        // Corrección del error ts(2322): usamos el objeto trigger específico
+                        trigger: {
+                            date: triggerDate,
+                        } as Notifications.NotificationTriggerInput,
+                    });
+                }
+            }
+        } catch (error) {
+            console.log("Error agendando notificación:", error);
+        }
+    };
 
     const generatePassword = () => {
         const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
@@ -63,6 +91,9 @@ export default function AddCredentialScreen() {
                 notes,
                 ...specialData 
             });
+
+            // Agendamos la notificación basándonos en los datos especiales
+            await scheduleCategoryNotification(accountName, specialData);
 
             Alert.alert("Éxito", "Cuenta guardada en el Bunker");
             router.back(); 
@@ -100,7 +131,6 @@ export default function AddCredentialScreen() {
                     isDark={true}
                 />
 
-                {/* OCULTAR CAMPOS DE ACCESO SI ES MASCOTA O MOVILIDAD */}
                 {category !== 'pet' && category !== 'mobility' && (
                     <>
                         <Text style={styles.label}>Usuario / Email *</Text>

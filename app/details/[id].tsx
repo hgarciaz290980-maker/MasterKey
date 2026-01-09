@@ -7,11 +7,12 @@ import {
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication'; 
+import * as Clipboard from 'expo-clipboard'; // LIBRERÍA DE COPIADO
 
 import { getCredentialById, updateCredential, deleteCredential, Reminder } from '@/storage/credentials'; 
 import EditCredentialModal from '../components/EditCredentialModal'; 
 
-// Actualizamos las llaves editables para incluir movilidad
+// Llaves editables
 type EditableKeys = 'accountName' | 'alias' | 'username' | 'password' | 'notes' | 'category' | 
                    'petTipo' | 'petNombre' | 'petSangre' | 'petChip' | 'petVacunas' | 
                    'petVeterinario' | 'petVeterinarioTelefono' |
@@ -85,6 +86,11 @@ export default function CredentialDetailsScreen() {
     
     useFocusEffect(useCallback(() => { fetchCredential(); return () => setIsUnlocked(false); }, [id]));
 
+    const copyToClipboard = async (val: string) => {
+        await Clipboard.setStringAsync(val);
+        Alert.alert("Copiado", "Dato copiado al portapapeles");
+    };
+
     const updateField = (field: string, value: any) => {
         setCredential((prev: any) => ({ ...prev, [field]: value }));
         setHasUnsavedChanges(true);
@@ -131,14 +137,25 @@ export default function CredentialDetailsScreen() {
         ]);
     };
 
+    // RENDER ROW MEJORADO CON OJITO Y COPIAR
     const renderRow = (label: string, key: EditableKeys, value: string, isPassword = false) => (
         <View style={{ marginBottom: 15 }}>
             <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>{label}</Text>
             <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <View style={{ flex: 1 }}>
-                    <Text style={[styles.infoValue, { color: theme.text }]}>
+                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={[styles.infoValue, { color: theme.text, flex: 1 }]}>
                         {isPassword ? (showPassword ? value : '••••••••••••') : (value || 'No asignado')}
                     </Text>
+                    {isPassword && value && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ paddingHorizontal: 12 }}>
+                                <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color={theme.primary} />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => copyToClipboard(value)} style={{ paddingHorizontal: 12 }}>
+                                <Ionicons name="copy-outline" size={22} color={theme.primary} />
+                            </TouchableOpacity>
+                        </View>
+                    )}
                 </View>
                 <TouchableOpacity onPress={() => { setEditingField(key); setEditingLabel(fieldLabels[key]); setIsModalVisible(true); }} style={styles.innerEditBtn}>
                     <Ionicons name="pencil" size={18} color={theme.primary} />
@@ -170,7 +187,6 @@ export default function CredentialDetailsScreen() {
                 {renderRow('Nombre', 'accountName', credential.accountName)}
                 {renderRow('Alias', 'alias', credential.alias)}
 
-                {/* --- SECCIÓN ESPECÍFICA MOVILIDAD --- */}
                 {credential.category === 'mobility' && (
                     <>
                         <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>DATOS DEL VEHÍCULO 🚗</Text>
@@ -190,7 +206,6 @@ export default function CredentialDetailsScreen() {
                             <View style={{ width: '48%' }}>{renderRow('Vencimiento', 'autoVencimientoPoliza', credential.autoVencimientoPoliza)}</View>
                         </View>
                         
-                        {/* Teléfono Seguro con Llamada */}
                         <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>Teléfono de Siniestros</Text>
                         <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.callButton, borderLeftWidth: 4 }]}>
                             <Text style={[styles.infoValue, { color: theme.text, flex: 1, fontWeight: 'bold' }]}>{credential.autoAseguradoraTelefono || 'Sin teléfono'}</Text>
@@ -226,7 +241,6 @@ export default function CredentialDetailsScreen() {
                     </>
                 )}
 
-                {/* --- SECCIÓN ESPECÍFICA MASCOTAS --- */}
                 {credential.category === 'pet' && (
                     <>
                         <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>FICHA MÉDICA 🐾</Text>
@@ -252,7 +266,6 @@ export default function CredentialDetailsScreen() {
                     </>
                 )}
 
-                {/* --- DATOS DE ACCESO PARA OTRAS CATEGORÍAS --- */}
                 {credential.category !== 'pet' && credential.category !== 'mobility' && (
                     <>
                         <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>DATOS DE ACCESO</Text>

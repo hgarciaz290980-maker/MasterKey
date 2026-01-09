@@ -13,9 +13,6 @@ import * as Notifications from 'expo-notifications';
 import { getCredentialById, updateCredential, deleteCredential, Reminder } from '../../storage/credentials'; 
 import EditCredentialModal from '../components/EditCredentialModal'; 
 
-// Importación del almacén para la campanita
-import { saveNotification } from '../../storage/notificationsStorage';
-
 type EditableKeys = 'accountName' | 'alias' | 'username' | 'password' | 'notes' | 'category' | 
                    'petTipo' | 'petNombre' | 'petSangre' | 'petChip' | 'petVacunas' | 
                    'petVeterinario' | 'petVeterinarioTelefono' |
@@ -145,30 +142,22 @@ export default function CredentialDetailsScreen() {
                     const secondsToWait = Math.round((scheduledDate.getTime() - Date.now()) / 1000);
 
                     if (secondsToWait > 0) {
-                        // 1. Programar la notificación push
                         await Notifications.scheduleNotificationAsync({
                             content: {
                                 title: `🚨 Recordatorio Bunker-K`,
                                 body: `${rem.note || 'Tarea pendiente'} (${credential.accountName})`,
                                 priority: Notifications.AndroidNotificationPriority.MAX,
                                 sound: true,
-                                data: { url: `/details/${id}` },
+                                data: { 
+                                    url: `/details/${id}`,
+                                    type: credential.category === 'pet' ? 'pet' : 'general',
+                                    description: rem.note || 'Revisar detalles'
+                                },
                             },
                             trigger: { 
                                 type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
                                 seconds: secondsToWait 
                             } as any,
-                        });
-
-                        // 2. Guardar en el historial de la campanita
-                        await saveNotification({
-                            id: rem.id,
-                            title: `Recordatorio: ${credential.accountName}`,
-                            description: rem.note || 'Revisar detalles',
-                            date: `${rem.date} ${rem.time}`,
-                            type: credential.category === 'pet' ? 'pet' : 'general',
-                            isRead: false,
-                            url: `/details/${id}`
                         });
                     }
                 } catch (err) {

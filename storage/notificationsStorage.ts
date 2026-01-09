@@ -1,30 +1,28 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const NOTIFICATIONS_KEY = '@user_notifications';
+const NOTIFICATIONS_KEY = '@bunkerk_notifications_v1';
 
-export interface AppNotification {
+export interface NotificationItem {
     id: string;
     title: string;
     description: string;
     date: string;
-    type: 'pet' | 'mobility' | 'work' | 'general';
+    type: 'pet' | 'general';
     isRead: boolean;
-    url?: string; // Aquí guardaremos la ruta exacta "a la cocina"
+    url?: string;
 }
 
-// Función para guardar una nueva notificación en el historial
-export const saveNotification = async (notification: AppNotification) => {
+export const saveNotification = async (notification: NotificationItem) => {
     try {
         const existing = await getNotifications();
-        const updated = [notification, ...existing];
+        const updated = [...existing, notification];
         await AsyncStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updated));
     } catch (e) {
-        console.error("Error al guardar notificación:", e);
+        console.error("Error saving notification", e);
     }
 };
 
-// Función para obtener todas las notificaciones
-export const getNotifications = async (): Promise<AppNotification[]> => {
+export const getNotifications = async (): Promise<NotificationItem[]> => {
     try {
         const data = await AsyncStorage.getItem(NOTIFICATIONS_KEY);
         return data ? JSON.parse(data) : [];
@@ -33,13 +31,13 @@ export const getNotifications = async (): Promise<AppNotification[]> => {
     }
 };
 
-// Función para limpiar el contador (marcar todas como leídas)
-export const markAllAsRead = async () => {
+// Esta es la función que borra la notificación de la lista cuando la tocas
+export const deleteNotification = async (id: string) => {
     try {
-        const notifications = await getNotifications();
-        const updated = notifications.map(n => ({ ...n, isRead: true }));
+        const existing = await getNotifications();
+        const updated = existing.filter(n => n.id !== id);
         await AsyncStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updated));
     } catch (e) {
-        console.error("Error al marcar como leídas");
+        console.error("Error deleting notification", e);
     }
 };

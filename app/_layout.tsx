@@ -2,8 +2,9 @@ import { Stack } from 'expo-router';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { saveNotification } from '../storage/notificationsStorage';
 
-// Configuramos cómo se porta la notificación cuando la app está abierta
+// Configuramos el comportamiento de las notificaciones
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -26,13 +27,9 @@ export default function TabLayout() {
           finalStatus = status;
         }
 
-        if (finalStatus !== 'granted') {
-          console.log("Permisos denegados por el usuario");
-          return;
-        }
+        if (finalStatus !== 'granted') return;
 
         if (Platform.OS === 'android') {
-          // Este canal es el que vincula el permiso del sistema con el Popup
           await Notifications.setNotificationChannelAsync('default', {
             name: 'Alertas de Bunker-K',
             importance: Notifications.AndroidImportance.MAX,
@@ -42,13 +39,36 @@ export default function TabLayout() {
             showBadge: true,
           });
         }
-        console.log("✅ Canal 'default' configurado correctamente");
       } catch (error) {
-        console.log("Error configurando notificaciones:", error);
+        console.log("Error en setup:", error);
       }
     }
     
     setupNotifications();
+
+    // ESCUCHADOR: Se activa cuando llega una notificación
+    const subscription = Notifications.addNotificationReceivedListener(async (notification) => {
+      const { title, body } = notification.request.content;
+      // Forzamos a que data se trate como un objeto con nuestras propiedades
+      const data = notification.request.content.data as { 
+        description?: string; 
+        type?: 'pet' | 'general'; 
+        url?: string 
+      };
+      
+      // Guardamos en la campanita en el momento exacto que llega la notificación
+      await saveNotification({
+        id: notification.request.identifier + "_" + Date.now(),
+        title: title || 'Recordatorio Bunker-K',
+        description: data?.description || body || 'Revisar detalles',
+        date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+        type: data?.type || 'general',
+        isRead: false,
+        url: data?.url || undefined
+      });
+    });
+
+    return () => subscription.remove();
   }, []);
 
   return (

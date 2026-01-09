@@ -1,10 +1,10 @@
 import * as AuthSession from 'expo-auth-session';
-import React, { useState, useEffect } from 'react'; 
+import React, { useState, useEffect, useCallback } from 'react'; 
 import { 
     View, Text, StyleSheet, TouchableOpacity, SafeAreaView, 
     ScrollView, useColorScheme, Platform, Modal
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router'; 
+import { Stack, useRouter, useFocusEffect } from 'expo-router'; 
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -47,7 +47,7 @@ export default function DashboardScreen() {
         { id: 'entertainment', label: 'Entretenimiento', icon: 'play-circle', color: '#e83e8c' },
     ];
 
-    // FUNCIÓN PARA CONTAR NOTIFICACIONES
+    // FUNCIÓN PARA CONTAR NOTIFICACIONES PROGRAMADAS
     const updateNotificationCount = async () => {
         try {
             const scheduled = await Notifications.getAllScheduledNotificationsAsync();
@@ -57,15 +57,21 @@ export default function DashboardScreen() {
         }
     };
 
-    // ESCUCHADOR EN TIEMPO REAL PARA LA CAMPANITA
+    // ACTUALIZACIÓN DINÁMICA: Cada vez que el usuario vuelve al Dashboard, se cuenta de nuevo
+    useFocusEffect(
+        useCallback(() => {
+            if (isAuthenticated) {
+                updateNotificationCount();
+            }
+        }, [isAuthenticated])
+    );
+
+    // Escuchador por si llega una notificación estando dentro de la app
     useEffect(() => {
         if (isAuthenticated) {
-            updateNotificationCount();
-
             const subscription = Notifications.addNotificationReceivedListener(() => {
                 updateNotificationCount();
             });
-
             return () => subscription.remove();
         }
     }, [isAuthenticated]);

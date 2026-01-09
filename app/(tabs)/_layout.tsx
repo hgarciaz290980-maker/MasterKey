@@ -1,38 +1,65 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 
-// Bypass de seguridad: Cargamos la librería solo si el módulo nativo existe
-let Notifications: any;
-try {
-  Notifications = require('expo-notifications');
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    } as any),
-  });
-} catch (e) {
-  console.warn("Módulo de notificaciones no disponible en este entorno");
-}
+// Configuración para que el Pop-up aparezca
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  } as any),
+});
 
 export default function TabLayout() {
+  const router = useRouter();
+
   useEffect(() => {
-    async function requestPermissions() {
+    async function setupNotifications() {
+      if (Platform.OS === 'web') return;
+
       try {
-        if (Platform.OS !== 'web' && Notifications) {
-          const { status: existingStatus } = await Notifications.getPermissionsAsync();
-          if (existingStatus !== 'granted') {
-            await Notifications.requestPermissionsAsync();
-          }
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+
+        if (finalStatus !== 'granted') return;
+
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'Bunker-K Alerts',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#007BFF',
+          });
         }
       } catch (error) {
-        console.log("Notificaciones no inicializadas (Entorno Expo Go)");
+        console.log("Error configurando notificaciones:", error);
       }
     }
     
-    requestPermissions();
+    setupNotifications();
+
+    // ESCUCHADOR DE CLIC CORREGIDO
+    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+      // Usamos "as any" para que no se queje de las rutas
+      const data = response.notification.request.content.data as any;
+      
+      if (data && data.url) {
+        router.push(data.url);
+      } else {
+        router.push('/notifications' as any);
+      }
+    });
+
+    return () => {
+      // Corregido: La forma correcta de quitar el oído en esta versión
+      responseListener.remove();
+    };
   }, []);
 
   return (

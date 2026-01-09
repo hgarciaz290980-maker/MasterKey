@@ -2,17 +2,20 @@ import React, { useState, useCallback } from 'react';
 import { 
     View, Text, StyleSheet, SafeAreaView, ActivityIndicator, 
     TouchableOpacity, Alert, ScrollView, Switch, 
-    useColorScheme, Linking, Modal
+    useColorScheme, Linking, Modal, Platform
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication'; 
-import * as Clipboard from 'expo-clipboard'; // LIBRERÍA DE COPIADO
+import * as Clipboard from 'expo-clipboard';
+import * as Notifications from 'expo-notifications'; 
 
-import { getCredentialById, updateCredential, deleteCredential, Reminder } from '@/storage/credentials'; 
+import { getCredentialById, updateCredential, deleteCredential, Reminder } from '../../storage/credentials'; 
 import EditCredentialModal from '../components/EditCredentialModal'; 
 
-// Llaves editables
+// Importación del almacén para la campanita
+import { saveNotification } from '../../storage/notificationsStorage';
+
 type EditableKeys = 'accountName' | 'alias' | 'username' | 'password' | 'notes' | 'category' | 
                    'petTipo' | 'petNombre' | 'petSangre' | 'petChip' | 'petVacunas' | 
                    'petVeterinario' | 'petVeterinarioTelefono' |
@@ -123,11 +126,69 @@ export default function CredentialDetailsScreen() {
         setIsModalVisible(false);
     };
 
+    const scheduleReminders = async () => {
+        if (!credential.hasReminder || !credential.reminders) return;
+
+        await Notifications.cancelAllScheduledNotificationsAsync();
+
+        for (const rem of credential.reminders) {
+            if (rem.date && rem.time) {
+                try {
+                    const [day, month, year] = rem.date.split('/').map(Number);
+                    const [timeStr, period] = rem.time.split(' ');
+                    let [hours, minutes] = timeStr.split(':').map(Number);
+
+                    if (period === 'PM' && hours < 12) hours += 12;
+                    if (period === 'AM' && hours === 12) hours = 0;
+
+                    const scheduledDate = new Date(year, month - 1, day, hours, minutes, 0);
+                    const secondsToWait = Math.round((scheduledDate.getTime() - Date.now()) / 1000);
+
+                    if (secondsToWait > 0) {
+                        // 1. Programar la notificación push
+                        await Notifications.scheduleNotificationAsync({
+                            content: {
+                                title: `🚨 Recordatorio Bunker-K`,
+                                body: `${rem.note || 'Tarea pendiente'} (${credential.accountName})`,
+                                priority: Notifications.AndroidNotificationPriority.MAX,
+                                sound: true,
+                                data: { url: `/details/${id}` },
+                            },
+                            trigger: { 
+                                type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                                seconds: secondsToWait 
+                            } as any,
+                        });
+
+                        // 2. Guardar en el historial de la campanita
+                        await saveNotification({
+                            id: rem.id,
+                            title: `Recordatorio: ${credential.accountName}`,
+                            description: rem.note || 'Revisar detalles',
+                            date: `${rem.date} ${rem.time}`,
+                            type: credential.category === 'pet' ? 'pet' : 'general',
+                            isRead: false,
+                            url: `/details/${id}`
+                        });
+                    }
+                } catch (err) {
+                    console.error("Error al procesar recordatorio:", err);
+                }
+            }
+        }
+    };
+
     const handleSaveChanges = async () => {
         try {
             await updateCredential(credential);
-            Alert.alert("Éxito", "Bunker actualizado", [{ text: "OK", onPress: () => { setHasUnsavedChanges(false); router.back(); } }]);
-        } catch (error) { Alert.alert("Error", "No se pudieron guardar los cambios"); }
+            await scheduleReminders();
+            Alert.alert("Éxito", "Bunker actualizado", [{ 
+                text: "OK", 
+                onPress: () => { setHasUnsavedChanges(false); router.back(); } 
+            }]);
+        } catch (error) { 
+            Alert.alert("Error", "No se pudieron guardar los cambios"); 
+        }
     };
 
     const handleDelete = () => {
@@ -137,7 +198,6 @@ export default function CredentialDetailsScreen() {
         ]);
     };
 
-    // RENDER ROW MEJORADO CON OJITO Y COPIAR
     const renderRow = (label: string, key: EditableKeys, value: string, isPassword = false) => (
         <View style={{ marginBottom: 15 }}>
             <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>{label}</Text>

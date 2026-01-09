@@ -10,6 +10,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser'; 
 import * as Google from 'expo-auth-session/providers/google';
+import * as Notifications from 'expo-notifications'; 
 
 import BackupManager from '../components/BackupManager'; 
 
@@ -35,8 +36,7 @@ export default function DashboardScreen() {
     const [isAuthenticated, setIsAuthenticated] = useState(isAppUnlocked);
     const [userName, setUserName] = useState('Usuario');
     const [showTypeSelector, setShowTypeSelector] = useState(false);
-    
-    const [unreadCount, setUnreadCount] = useState(3);
+    const [unreadCount, setUnreadCount] = useState(0);
 
     const categories = [
         { id: 'fav', label: 'Recurrentes', icon: 'star', color: '#FFC107' },
@@ -46,6 +46,55 @@ export default function DashboardScreen() {
         { id: 'mobility', label: 'Movilidad', icon: 'car-sport', color: '#dc3545' },
         { id: 'entertainment', label: 'Entretenimiento', icon: 'play-circle', color: '#e83e8c' },
     ];
+
+    // FUNCIÓN PARA CONTAR NOTIFICACIONES
+    const updateNotificationCount = async () => {
+        try {
+            const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+            setUnreadCount(scheduled.length);
+        } catch (e) {
+            console.log("Error actualizando contador");
+        }
+    };
+
+    // ESCUCHADOR EN TIEMPO REAL PARA LA CAMPANITA
+    useEffect(() => {
+        if (isAuthenticated) {
+            updateNotificationCount();
+
+            // Si llega una notificación mientras la app está abierta, actualiza el número de la campanita
+            const subscription = Notifications.addNotificationReceivedListener(() => {
+                updateNotificationCount();
+            });
+
+            return () => subscription.remove();
+        }
+    }, [isAuthenticated]);
+
+    // BOTÓN DE PÁNICO MEJORADO: Ahora incluye la ruta hacia Mascotas
+    const handlePanicTest = async () => {
+        console.log("🚀 Iniciando prueba de pánico...");
+        try {
+            await Notifications.scheduleNotificationAsync({
+                content: {
+                    title: "🚨 PRUEBA DE BÚNKER-K",
+                    body: "Haz clic aquí para ir a la tarjeta de Mascota",
+                    priority: Notifications.AndroidNotificationPriority.MAX,
+                    sound: true,
+                    // Estos datos le dicen a la app a dónde ir al hacer clic
+                    data: { url: "/list?filter=pet" }, 
+                },
+                trigger: { 
+                    type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                    seconds: 5,
+                } as any,
+            });
+            alert("Prueba enviada. ¡Sal al escritorio (Home) AHORA y espera 5 segundos!");
+        } catch (error) {
+            console.error("Error en botón de pánico:", error);
+            alert("Error al programar prueba");
+        }
+    };
 
    const [request, response, promptAsync] = Google.useAuthRequest({
         androidClientId: "619201497268-vcop7li7m3jdvib2je642d54tmpktkad.apps.googleusercontent.com",
@@ -59,7 +108,7 @@ export default function DashboardScreen() {
     useEffect(() => {
         if (response?.type === 'success') {
             const { authentication } = response;
-            console.log("✅ Acceso concedido. Token:", authentication?.accessToken);
+            console.log("✅ Acceso concedido");
         }
     }, [response]);
 
@@ -166,8 +215,17 @@ export default function DashboardScreen() {
                     <View style={styles.toolsRow}>
                         { BackupManager && <BackupManager /> }
                     </View>
+                    
                     <TouchableOpacity 
-                        style={[styles.googleCard, { borderColor: theme.primary }]} 
+                        style={[styles.panicButton, { backgroundColor: theme.danger + '20', borderColor: theme.danger }]} 
+                        onPress={handlePanicTest}
+                    >
+                        <Ionicons name="alert-circle" size={20} color={theme.danger} />
+                        <Text style={[styles.panicText, { color: theme.danger }]}> PROBAR POPUP (5 SEG)</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity 
+                        style={[styles.googleCard, { borderColor: theme.primary, marginTop: 15 }]} 
                         onPress={() => promptAsync()}
                         disabled={!request}
                     >
@@ -253,6 +311,15 @@ const styles = StyleSheet.create({
     cardTitle: { fontSize: 18, fontWeight: '600', marginLeft: 10 },
     sectionTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 15 },
     toolsRow: { marginBottom: 10 },
+    panicButton: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        padding: 15, 
+        borderRadius: 15, 
+        borderWidth: 1, 
+    },
+    panicText: { fontSize: 16, fontWeight: 'bold', marginLeft: 10 },
     googleCard: { 
         flexDirection: 'row', 
         alignItems: 'center', 

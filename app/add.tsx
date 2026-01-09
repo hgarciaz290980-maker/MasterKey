@@ -19,9 +19,7 @@ export default function AddCredentialScreen() {
     const [password, setPassword] = useState('');
     const [websiteUrl, setWebsiteUrl] = useState('');
     const [notes, setNotes] = useState('');
-    
     const [category, setCategory] = useState<Credential['category']>((type as any) || 'personal');
-    
     const [specialData, setSpecialData] = useState<any>({});
     const [showPassword, setShowPassword] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
@@ -35,31 +33,36 @@ export default function AddCredentialScreen() {
         { id: 'entertainment', label: 'Entretenimiento' },
     ];
 
-    // FUNCIÓN CORREGIDA PARA EL TRIGGER DE NOTIFICACIÓN
+    // Cirugía Reparada: Ahora usa la hora del formulario especial
     const scheduleCategoryNotification = async (name: string, data: any) => {
         try {
-            const dateValue = data.nextVaccine || data.insuranceExpiry || data.serviceDate;
-            
-            if (dateValue) {
-                const triggerDate = new Date(dateValue);
+            const dateStr = data.petFechaAlerta || data.autoFechaAlerta;
+            const timeStr = data.petHoraAlerta || data.autoHoraAlerta;
+            const period = data.petPeriodoAlerta || data.autoPeriodoAlerta || 'AM';
+
+            if (dateStr && timeStr) {
+                const [day, month, year] = dateStr.split('/').map(Number);
+                const [rawHour, minutes] = timeStr.split(':').map(Number);
+                let hour = rawHour;
+                if (period === 'PM' && hour < 12) hour += 12;
+                if (period === 'AM' && hour === 12) hour = 0;
+
+                const triggerDate = new Date(year, month - 1, day, hour, minutes, 0);
                 
                 if (triggerDate.getTime() > Date.now()) {
                     await Notifications.scheduleNotificationAsync({
                         content: {
-                            title: `🚨 Recordatorio Bunker-K: ${name}`,
-                            body: `Tienes un compromiso pendiente agendado para hoy.`,
+                            title: `🚨 Bunker-K: ${name}`,
+                            body: `Recordatorio programado para esta hora.`,
                             sound: true,
                             priority: Notifications.AndroidNotificationPriority.HIGH,
                         },
-                        // Corrección del error ts(2322): usamos el objeto trigger específico
-                        trigger: {
-                            date: triggerDate,
-                        } as Notifications.NotificationTriggerInput,
+                        trigger: { date: triggerDate } as Notifications.NotificationTriggerInput,
                     });
                 }
             }
         } catch (error) {
-            console.log("Error agendando notificación:", error);
+            console.log("Error en notificación:", error);
         }
     };
 
@@ -79,11 +82,10 @@ export default function AddCredentialScreen() {
             Alert.alert("Error", "El nombre de la cuenta es obligatorio");
             return;
         }
-
         try {
             await createCredential({
                 accountName,
-                alias,
+                alias, 
                 username: (category === 'pet' || category === 'mobility') ? 'N/A' : (username || 'N/A'), 
                 password: (category === 'pet' || category === 'mobility') ? 'N/A' : (password || 'N/A'),
                 category,
@@ -91,72 +93,60 @@ export default function AddCredentialScreen() {
                 notes,
                 ...specialData 
             });
-
-            // Agendamos la notificación basándonos en los datos especiales
             await scheduleCategoryNotification(accountName, specialData);
-
             Alert.alert("Éxito", "Cuenta guardada en el Bunker");
             router.back(); 
         } catch (error) {
-            Alert.alert("Error", "No se pudo guardar la cuenta");
+            Alert.alert("Error", "No se pudo guardar");
         }
     };
 
     return (
         <SafeAreaView style={styles.container}>
-            <Stack.Screen options={{ 
-                title: `Nuevo: ${categories.find(c => c.id === category)?.label}`, 
-                headerShown: true 
-            }} />
+            <Stack.Screen options={{ title: `Nuevo: ${categories.find(c => c.id === category)?.label}`, headerShown: true }} />
             <ScrollView contentContainerStyle={styles.scroll}>
                 
                 <Text style={styles.label}>Nombre de la cuenta *</Text>
-                <TextInput style={styles.input} value={accountName} onChangeText={setAccountName} placeholder="Ej: Netflix / Nombre Mascota" placeholderTextColor="#666" />
-
-                <Text style={styles.label}>Alias de la cuenta (Opcional)</Text>
-                <TextInput style={styles.input} value={alias} onChangeText={setAlias} placeholder="Ej: Mi cuenta principal" placeholderTextColor="#666" />
+                <TextInput style={styles.input} value={accountName} onChangeText={setAccountName} placeholder="Ej: Netflix, Mi Perro, Seguro" placeholderTextColor="#666" />
+                
+                <Text style={styles.label}>Alias (Opcional)</Text>
+                <TextInput style={styles.input} value={alias} onChangeText={setAlias} placeholder="Ej: Cuenta Personal" placeholderTextColor="#666" />
 
                 <Text style={styles.label}>Categoría Seleccionada</Text>
                 <TouchableOpacity style={styles.pickerTrigger} onPress={() => setShowPicker(true)}>
-                    <Text style={styles.pickerTriggerText}>
-                        {categories.find(c => c.id === category)?.label}
-                    </Text>
+                    <Text style={styles.pickerTriggerText}>{categories.find(c => c.id === category)?.label}</Text>
                     <Ionicons name="chevron-down" size={20} color="#007BFF" />
                 </TouchableOpacity>
 
-                <SpecialCategoryForm 
-                    category={category}
-                    formData={specialData}
-                    onChange={handleSpecialChange}
-                    isDark={true}
-                />
+                {/* FORMULARIO ESPECIAL (Mascotas/Movilidad) */}
+                <SpecialCategoryForm category={category} formData={specialData} onChange={handleSpecialChange} isDark={true} />
 
+                {/* FORMULARIO GENÉRICO (Solo si no es Mascota/Movilidad) */}
                 {category !== 'pet' && category !== 'mobility' && (
                     <>
                         <Text style={styles.label}>Usuario / Email *</Text>
-                        <TextInput style={styles.input} value={username} onChangeText={setUsername} autoCapitalize="none" placeholderTextColor="#666" />
-
+                        <TextInput style={styles.input} value={username} onChangeText={setUsername} autoCapitalize="none" placeholder="correo@ejemplo.com" placeholderTextColor="#666" />
+                        
                         <View style={styles.passwordHeader}>
                             <Text style={styles.labelPassword}>Contraseña *</Text>
                             <TouchableOpacity onPress={generatePassword}>
                                 <Text style={styles.generateText}>Generar clave segura</Text>
                             </TouchableOpacity>
                         </View>
-                        
                         <View style={styles.passwordContainer}>
-                            <TextInput style={styles.passwordInput} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} placeholderTextColor="#666" />
+                            <TextInput style={styles.passwordInput} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} placeholder="••••••••" placeholderTextColor="#666" />
                             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.innerIcon}>
                                 <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#007BFF" />
                             </TouchableOpacity>
                         </View>
+
+                        <Text style={styles.label}>Sitio Web / URL</Text>
+                        <TextInput style={styles.input} value={websiteUrl} onChangeText={setWebsiteUrl} placeholder="https://..." placeholderTextColor="#666" />
                     </>
                 )}
 
-                <Text style={styles.label}>Sitio Web / URL</Text>
-                <TextInput style={styles.input} value={websiteUrl} onChangeText={setWebsiteUrl} placeholder="www.ejemplo.com" placeholderTextColor="#666" />
-
                 <Text style={styles.label}>Notas adicionales</Text>
-                <TextInput style={[styles.input, { height: 100, textAlignVertical: 'top' }]} value={notes} onChangeText={setNotes} multiline placeholderTextColor="#666" />
+                <TextInput style={[styles.input, { height: 100 }]} value={notes} onChangeText={setNotes} multiline placeholder="Cualquier detalle extra..." placeholderTextColor="#666" />
 
                 <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
                     <Text style={styles.saveButtonText}>Guardar Cuenta</Text>
@@ -170,7 +160,6 @@ export default function AddCredentialScreen() {
                         {categories.map((item) => (
                             <TouchableOpacity key={item.id} style={styles.modalItem} onPress={() => { setCategory(item.id as any); setShowPicker(false); }}>
                                 <Text style={styles.modalItemText}>{item.label}</Text>
-                                {category === item.id && <Ionicons name="checkmark-circle" size={22} color="#007BFF" />}
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -184,7 +173,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#121212' },
     scroll: { padding: 20 },
     label: { color: '#ADB5BD', fontSize: 14, marginBottom: 8, marginTop: 15, fontWeight: 'bold' },
-    input: { backgroundColor: '#1E1E1E', color: '#FFF', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#333', marginBottom: 5 },
+    input: { backgroundColor: '#1E1E1E', color: '#FFF', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#333' },
     passwordHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 15, marginBottom: 8 },
     labelPassword: { color: '#ADB5BD', fontSize: 14, fontWeight: 'bold' },
     generateText: { color: '#007BFF', fontSize: 12, fontWeight: 'bold' },
@@ -198,6 +187,6 @@ const styles = StyleSheet.create({
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 30 },
     modalContent: { backgroundColor: '#1E1E1E', borderRadius: 20, padding: 20, borderWidth: 1, borderColor: '#333' },
     modalTitle: { color: '#FFF', fontSize: 18, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
-    modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#333', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#333' },
     modalItemText: { color: '#FFF', fontSize: 16 }
 });

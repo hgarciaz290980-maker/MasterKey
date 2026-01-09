@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardTypeOptions, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard'; // Librería para copiar
+import * as Clipboard from 'expo-clipboard';
 
 interface EditModalProps {
   isVisible: boolean;
@@ -21,7 +21,7 @@ export default function EditCredentialModal({
 
   useEffect(() => {
     if (isVisible) {
-      setShowPassword(false); // Resetear visibilidad al abrir
+      setShowPassword(false);
       if (initialValue.includes('AM')) {
         setValue(initialValue.replace(' AM', ''));
         setPeriod('AM');
@@ -34,7 +34,10 @@ export default function EditCredentialModal({
     }
   }, [initialValue, isVisible]);
 
-  const isPasswordField = fieldLabel.toLowerCase().includes('contraseña') || fieldLabel.toLowerCase().includes('password');
+  const isPasswordField = 
+    fieldLabel.toLowerCase().includes('contraseña') || 
+    fieldLabel.toLowerCase().includes('password') || 
+    fieldLabel.toLowerCase().includes('clave');
 
   const generatePassword = () => {
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
@@ -67,6 +70,23 @@ export default function EditCredentialModal({
     }
   };
 
+  // Función para validar y formatear antes de enviar
+  const handleConfirm = () => {
+    if (fieldLabel === 'Hora') {
+      // Validamos que la hora sea lógica (00-12) antes de guardar
+      const [h, m] = value.split(':');
+      const hourNum = parseInt(h);
+      const minNum = parseInt(m);
+      if (hourNum > 12 || minNum > 59) {
+        Alert.alert("Error", "Por favor ingresa una hora válida (01-12)");
+        return;
+      }
+      onSave(`${value} ${period}`);
+    } else {
+      onSave(value);
+    }
+  };
+
   return (
     <Modal visible={isVisible} animationType="slide" transparent={true}>
       <View style={styles.overlay}>
@@ -75,7 +95,7 @@ export default function EditCredentialModal({
             <Text style={styles.label}>{fieldLabel}</Text>
             {isPasswordField && (
               <View style={styles.passwordActions}>
-                 <TouchableOpacity onPress={copyToClipboard} style={styles.actionIcon}>
+                <TouchableOpacity onPress={copyToClipboard} style={styles.actionIcon}>
                   <Ionicons name="copy-outline" size={20} color="#007BFF" />
                 </TouchableOpacity>
                 <TouchableOpacity onPress={generatePassword}>
@@ -123,7 +143,7 @@ export default function EditCredentialModal({
               <Text style={styles.cancelText}>Cancelar</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              onPress={() => onSave(fieldLabel === 'Hora' ? `${value} ${period}` : value)} 
+              onPress={handleConfirm} 
               style={styles.saveBtn}
             >
               <Text style={styles.saveText}>Confirmar</Text>
@@ -136,7 +156,7 @@ export default function EditCredentialModal({
 }
 
 const styles = StyleSheet.create({
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', padding: 20 },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: '#1E1E1E', borderRadius: 20, padding: 25, borderWidth: 1, borderColor: '#333' },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   label: { fontSize: 14, fontWeight: 'bold', color: '#ADB5BD' },

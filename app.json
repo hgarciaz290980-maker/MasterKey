@@ -20,7 +20,9 @@
       "package": "com.mkpro01.masterkey",
       "permissions": [
         "RECEIVE_BOOT_COMPLETED",
-        "SCHEDULE_EXACT_ALARM"
+        "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM",
+        "NOTIFICATIONS"
       ]
     },
     "web": {

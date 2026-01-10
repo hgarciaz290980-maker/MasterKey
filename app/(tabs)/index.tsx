@@ -13,6 +13,7 @@ import * as Google from 'expo-auth-session/providers/google';
 import * as Notifications from 'expo-notifications'; 
 
 import BackupManager from '../components/BackupManager'; 
+import { getNotifications, saveNotification } from '../../storage/notificationsStorage';
 
 WebBrowser.maybeCompleteAuthSession(); 
 
@@ -47,17 +48,73 @@ export default function DashboardScreen() {
         { id: 'entertainment', label: 'Entretenimiento', icon: 'play-circle', color: '#e83e8c' },
     ];
 
-    // FUNCIÓN PARA CONTAR NOTIFICACIONES PROGRAMADAS
+    // SOLUCIÓN ANDROID: Configuración de Canales y Permisos al iniciar
+    useEffect(() => {
+        async function configureNotifications() {
+            if (Platform.OS === 'android') {
+                // 1. Crear el canal (Obligatorio Android 8+)
+                await Notifications.setNotificationChannelAsync('bunkerk-alerts', {
+                    name: 'Alertas Bunker-K',
+                    importance: Notifications.AndroidImportance.MAX,
+                    vibrationPattern: [0, 250, 250, 250],
+                    lightColor: '#007BFF',
+                });
+            }
+
+            // 2. Pedir permisos (Obligatorio Android 13+)
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+            if (existingStatus !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+            if (finalStatus !== 'granted') {
+                console.log('Permisos de notificación rechazados');
+            }
+        }
+        configureNotifications();
+    }, []);
+
+    const syncMissedNotifications = async () => {
+        try {
+            const delivered = await Notifications.getPresentedNotificationsAsync();
+            if (delivered.length === 0) return;
+
+            const localStored = await getNotifications();
+            const localIds = new Set(localStored.map((n: any) => n.id));
+
+            for (const notification of delivered) {
+                const { identifier } = notification.request;
+                const { title, body, data } = notification.request.content;
+
+                if (!localIds.has(identifier)) {
+                    await saveNotification({
+                        id: identifier, 
+                        title: title || 'Bunker-K',
+                        description: (data as any)?.description || body || 'Recordatorio de cuenta',
+                        date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                        type: (data as any)?.type || 'general',
+                        isRead: false,
+                        url: (data as any)?.url || undefined
+                    });
+                }
+            }
+        } catch (error) {
+            console.log("Error sincronizando:", error);
+        }
+    };
+
     const updateNotificationCount = async () => {
         try {
-            const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-            setUnreadCount(scheduled.length);
+            await syncMissedNotifications();
+            const allNotifications = await getNotifications();
+            const unread = allNotifications.filter((n: any) => !n.isRead).length;
+            setUnreadCount(unread);
         } catch (e) {
             console.log("Error actualizando contador");
         }
     };
 
-    // ACTUALIZACIÓN DINÁMICA: Cada vez que el usuario vuelve al Dashboard, se cuenta de nuevo
     useFocusEffect(
         useCallback(() => {
             if (isAuthenticated) {
@@ -66,7 +123,6 @@ export default function DashboardScreen() {
         }, [isAuthenticated])
     );
 
-    // Escuchador por si llega una notificación estando dentro de la app
     useEffect(() => {
         if (isAuthenticated) {
             const subscription = Notifications.addNotificationReceivedListener(() => {
@@ -87,7 +143,6 @@ export default function DashboardScreen() {
 
     useEffect(() => {
         if (response?.type === 'success') {
-            const { authentication } = response;
             console.log("✅ Acceso concedido");
         }
     }, [response]);
@@ -255,60 +310,15 @@ const styles = StyleSheet.create({
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
     welcomeText: { fontSize: 28, fontWeight: '800' },
     notificationBtn: { position: 'relative', padding: 5 },
-    badge: { 
-        position: 'absolute', 
-        right: 0, 
-        top: 0, 
-        minWidth: 18, 
-        height: 18, 
-        borderRadius: 9, 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        borderWidth: 2, 
-        borderColor: '#FFF' 
-    },
+    badge: { position: 'absolute', right: 0, top: 0, minWidth: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFF' },
     badgeText: { color: '#FFF', fontSize: 9, fontWeight: 'bold' },
-    mainCard: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        padding: 15, 
-        borderRadius: 15, 
-        marginBottom: 15, 
-        elevation: 2,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3
-    },
+    mainCard: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 15, marginBottom: 15, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3 },
     cardTitle: { fontSize: 18, fontWeight: '600', marginLeft: 10 },
     sectionTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 15 },
     toolsRow: { marginBottom: 10 },
-    googleCard: { 
-        flexDirection: 'row', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        padding: 15, 
-        borderRadius: 15, 
-        borderStyle: 'dashed', 
-        borderWidth: 1, 
-        marginTop: 5 
-    },
+    googleCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 15, borderStyle: 'dashed', borderWidth: 1, marginTop: 5 },
     googleText: { fontSize: 16, fontWeight: '600', marginLeft: 10 },
-    fab: { 
-        position: 'absolute', 
-        bottom: 20, 
-        right: 25, 
-        width: 60, 
-        height: 60, 
-        borderRadius: 30, 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        elevation: 8,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 4.65,
-    },
+    fab: { position: 'absolute', bottom: 20, right: 25, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4.65 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     authButton: { marginTop: 20, padding: 15, borderRadius: 10 },
     authButtonText: { color: '#FFF', fontWeight: 'bold' },

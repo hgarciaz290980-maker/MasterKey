@@ -8,6 +8,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { createCredential, Credential } from '../storage/credentials';
 import SpecialCategoryForm from './components/SpecialCategoryForm';
 import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
+
+// CONFIGURACIÓN GLOBAL: Para que suenen con la app abierta
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  } as any),
+});
 
 export default function AddCredentialScreen() {
     const router = useRouter();
@@ -24,6 +34,7 @@ export default function AddCredentialScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
 
+    // Lista de categorías que se había borrado
     const categories = [
         { id: 'fav', label: 'Recurrentes' },
         { id: 'personal', label: 'Personal' },
@@ -33,7 +44,21 @@ export default function AddCredentialScreen() {
         { id: 'entertainment', label: 'Entretenimiento' },
     ];
 
-    // Cirugía Reparada: Ahora usa la hora del formulario especial
+    useEffect(() => {
+        checkPermissions();
+    }, []);
+
+    const checkPermissions = async () => {
+        if (Device.isDevice) {
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+            if (existingStatus !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+        }
+    };
+
     const scheduleCategoryNotification = async (name: string, data: any) => {
         try {
             const dateStr = data.petFechaAlerta || data.autoFechaAlerta;
@@ -41,8 +66,9 @@ export default function AddCredentialScreen() {
             const period = data.petPeriodoAlerta || data.autoPeriodoAlerta || 'AM';
 
             if (dateStr && timeStr) {
-                const [day, month, year] = dateStr.split('/').map(Number);
-                const [rawHour, minutes] = timeStr.split(':').map(Number);
+                const [day, month, year] = dateStr.trim().split('/').map(Number);
+                const [rawHour, minutes] = timeStr.trim().split(':').map(Number);
+                
                 let hour = rawHour;
                 if (period === 'PM' && hour < 12) hour += 12;
                 if (period === 'AM' && hour === 12) hour = 0;
@@ -50,31 +76,29 @@ export default function AddCredentialScreen() {
                 const triggerDate = new Date(year, month - 1, day, hour, minutes, 0);
                 
                 if (triggerDate.getTime() > Date.now()) {
+                    const notificationId = `${name.replace(/\s/g, '_')}_${Date.now()}`;
+
                     await Notifications.scheduleNotificationAsync({
+                        identifier: notificationId,
                         content: {
                             title: `🚨 Bunker-K: ${name}`,
-                            body: `Recordatorio programado para esta hora.`,
-                            sound: true,
-                            priority: Notifications.AndroidNotificationPriority.HIGH,
+                            body: `Recordatorio: ${data.petNotas || data.autoNotas || 'Revisar detalles.'}`,
+                            data: { type: category },
+                            ...({
+                                android: {
+                                    channelId: 'bunkerk-alerts',
+                                    priority: 'max',
+                                },
+                            } as any)
                         },
-                        trigger: { date: triggerDate } as Notifications.NotificationTriggerInput,
+                        trigger: { date: triggerDate } as any,
                     });
+                    console.log(`✅ Programada para: ${triggerDate.toLocaleString()}`);
                 }
             }
         } catch (error) {
-            console.log("Error en notificación:", error);
+            console.error("Error en notificación:", error);
         }
-    };
-
-    const generatePassword = () => {
-        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-        let res = "";
-        for (let i = 0; i < 16; i++) res += charset.charAt(Math.floor(Math.random() * charset.length));
-        setPassword(res);
-    };
-
-    const handleSpecialChange = (field: string, value: string) => {
-        setSpecialData((prev: any) => ({ ...prev, [field]: value }));
     };
 
     const handleSave = async () => {
@@ -93,12 +117,28 @@ export default function AddCredentialScreen() {
                 notes,
                 ...specialData 
             });
+            
             await scheduleCategoryNotification(accountName, specialData);
-            Alert.alert("Éxito", "Cuenta guardada en el Bunker");
+            
+            // Diagnóstico
+            const pending = await Notifications.getAllScheduledNotificationsAsync();
+            
+            Alert.alert("Éxito", `Guardado. Notificaciones en cola: ${pending.length}`);
             router.back(); 
         } catch (error) {
             Alert.alert("Error", "No se pudo guardar");
         }
+    };
+
+    const generatePassword = () => {
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+        let res = "";
+        for (let i = 0; i < 16; i++) res += charset.charAt(Math.floor(Math.random() * charset.length));
+        setPassword(res);
+    };
+
+    const handleSpecialChange = (field: string, value: string) => {
+        setSpecialData((prev: any) => ({ ...prev, [field]: value }));
     };
 
     return (
@@ -118,10 +158,8 @@ export default function AddCredentialScreen() {
                     <Ionicons name="chevron-down" size={20} color="#007BFF" />
                 </TouchableOpacity>
 
-                {/* FORMULARIO ESPECIAL (Mascotas/Movilidad) */}
                 <SpecialCategoryForm category={category} formData={specialData} onChange={handleSpecialChange} isDark={true} />
 
-                {/* FORMULARIO GENÉRICO (Solo si no es Mascota/Movilidad) */}
                 {category !== 'pet' && category !== 'mobility' && (
                     <>
                         <Text style={styles.label}>Usuario / Email *</Text>
@@ -139,7 +177,6 @@ export default function AddCredentialScreen() {
                                 <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#007BFF" />
                             </TouchableOpacity>
                         </View>
-
                         <Text style={styles.label}>Sitio Web / URL</Text>
                         <TextInput style={styles.input} value={websiteUrl} onChangeText={setWebsiteUrl} placeholder="https://..." placeholderTextColor="#666" />
                     </>
@@ -157,7 +194,7 @@ export default function AddCredentialScreen() {
                 <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowPicker(false)}>
                     <View style={styles.modalContent}>
                         <Text style={styles.modalTitle}>Seleccionar Categoría</Text>
-                        {categories.map((item) => (
+                        {categories.map((item: any) => (
                             <TouchableOpacity key={item.id} style={styles.modalItem} onPress={() => { setCategory(item.id as any); setShowPicker(false); }}>
                                 <Text style={styles.modalItemText}>{item.label}</Text>
                             </TouchableOpacity>

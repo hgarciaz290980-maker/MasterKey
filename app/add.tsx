@@ -10,7 +10,6 @@ import SpecialCategoryForm from './components/SpecialCategoryForm';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 
-// CONFIGURACIÓN GLOBAL: Para que suenen con la app abierta
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -34,7 +33,6 @@ export default function AddCredentialScreen() {
     const [showPassword, setShowPassword] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
 
-    // Lista de categorías que se había borrado
     const categories = [
         { id: 'fav', label: 'Recurrentes' },
         { id: 'personal', label: 'Personal' },
@@ -44,6 +42,31 @@ export default function AddCredentialScreen() {
         { id: 'entertainment', label: 'Entretenimiento' },
     ];
 
+    // --- LÓGICA DE FECHA AUTOMÁTICA ---
+    const formatAutoDate = (text: string) => {
+        // Limpiar todo lo que no sea número
+        const cleaned = text.replace(/\D/g, '');
+        let formatted = cleaned;
+        
+        if (cleaned.length > 2) {
+            formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+        }
+        if (cleaned.length > 4) {
+            formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
+        }
+        return formatted.slice(0, 10); // Limitar a DD/MM/AAAA
+    };
+
+    const handleSpecialChange = (field: string, value: string) => {
+        let finalValue = value;
+        // Aplicar máscara si el campo es de fecha
+        if (field.toLowerCase().includes('fecha')) {
+            finalValue = formatAutoDate(value);
+        }
+        setSpecialData((prev: any) => ({ ...prev, [field]: finalValue }));
+    };
+    // ---------------------------------
+
     useEffect(() => {
         checkPermissions();
     }, []);
@@ -51,10 +74,8 @@ export default function AddCredentialScreen() {
     const checkPermissions = async () => {
         if (Device.isDevice) {
             const { status: existingStatus } = await Notifications.getPermissionsAsync();
-            let finalStatus = existingStatus;
             if (existingStatus !== 'granted') {
-                const { status } = await Notifications.requestPermissionsAsync();
-                finalStatus = status;
+                await Notifications.requestPermissionsAsync();
             }
         }
     };
@@ -68,48 +89,34 @@ export default function AddCredentialScreen() {
             if (dateStr && timeStr) {
                 const [day, month, year] = dateStr.trim().split('/').map(Number);
                 const [rawHour, minutes] = timeStr.trim().split(':').map(Number);
-                
                 let hour = rawHour;
                 if (period === 'PM' && hour < 12) hour += 12;
                 if (period === 'AM' && hour === 12) hour = 0;
-
                 const triggerDate = new Date(year, month - 1, day, hour, minutes, 0);
                 
                 if (triggerDate.getTime() > Date.now()) {
-                    const notificationId = `${name.replace(/\s/g, '_')}_${Date.now()}`;
-
                     await Notifications.scheduleNotificationAsync({
-                        identifier: notificationId,
                         content: {
                             title: `🚨 Bunker-K: ${name}`,
                             body: `Recordatorio: ${data.petNotas || data.autoNotas || 'Revisar detalles.'}`,
                             data: { type: category },
-                            ...({
-                                android: {
-                                    channelId: 'bunkerk-alerts',
-                                    priority: 'max',
-                                },
-                            } as any)
                         },
                         trigger: { date: triggerDate } as any,
                     });
-                    console.log(`✅ Programada para: ${triggerDate.toLocaleString()}`);
                 }
             }
-        } catch (error) {
-            console.error("Error en notificación:", error);
-        }
+        } catch (error) { console.error(error); }
     };
 
     const handleSave = async () => {
         if (!accountName) {
-            Alert.alert("Error", "El nombre de la cuenta es obligatorio");
+            Alert.alert("Error", "El nombre es obligatorio");
             return;
         }
         try {
             await createCredential({
                 accountName,
-                alias, 
+                alias: category === 'pet' ? 'Mascota' : (category === 'mobility' ? alias || 'Auto' : alias), 
                 username: (category === 'pet' || category === 'mobility') ? 'N/A' : (username || 'N/A'), 
                 password: (category === 'pet' || category === 'mobility') ? 'N/A' : (password || 'N/A'),
                 category,
@@ -117,17 +124,9 @@ export default function AddCredentialScreen() {
                 notes,
                 ...specialData 
             });
-            
             await scheduleCategoryNotification(accountName, specialData);
-            
-            // Diagnóstico
-            const pending = await Notifications.getAllScheduledNotificationsAsync();
-            
-            Alert.alert("Éxito", `Guardado. Notificaciones en cola: ${pending.length}`);
             router.back(); 
-        } catch (error) {
-            Alert.alert("Error", "No se pudo guardar");
-        }
+        } catch (error) { Alert.alert("Error", "No se pudo guardar"); }
     };
 
     const generatePassword = () => {
@@ -137,20 +136,34 @@ export default function AddCredentialScreen() {
         setPassword(res);
     };
 
-    const handleSpecialChange = (field: string, value: string) => {
-        setSpecialData((prev: any) => ({ ...prev, [field]: value }));
-    };
-
     return (
         <SafeAreaView style={styles.container}>
             <Stack.Screen options={{ title: `Nuevo: ${categories.find(c => c.id === category)?.label}`, headerShown: true }} />
             <ScrollView contentContainerStyle={styles.scroll}>
                 
-                <Text style={styles.label}>Nombre de la cuenta *</Text>
-                <TextInput style={styles.input} value={accountName} onChangeText={setAccountName} placeholder="Ej: Netflix, Mi Perro, Seguro" placeholderTextColor="#666" />
+                <Text style={styles.label}>
+                    {category === 'pet' ? 'Nombre de tu perrhijo o gathijo *' : (category === 'mobility' ? 'Auto *' : 'Nombre de la cuenta *')}
+                </Text>
+                <TextInput 
+                    style={styles.input} 
+                    value={accountName} 
+                    onChangeText={setAccountName} 
+                    placeholder={category === 'pet' ? "Ej: Toby, Luna, Pelusa..." : (category === 'mobility' ? "Ej: Mazda, BYD, Toyota" : "Ej: Netflix, Mi Banco...")} 
+                    placeholderTextColor="#666" 
+                />
                 
-                <Text style={styles.label}>Alias (Opcional)</Text>
-                <TextInput style={styles.input} value={alias} onChangeText={setAlias} placeholder="Ej: Cuenta Personal" placeholderTextColor="#666" />
+                {category !== 'pet' && (
+                    <>
+                        <Text style={styles.label}>Alias (Opcional)</Text>
+                        <TextInput 
+                            style={styles.input} 
+                            value={alias} 
+                            onChangeText={setAlias} 
+                            placeholder={category === 'mobility' ? "Ej: Bumblebee, Halcón Milenario..." : "Ej: Cuenta Personal"} 
+                            placeholderTextColor="#666" 
+                        />
+                    </>
+                )}
 
                 <Text style={styles.label}>Categoría Seleccionada</Text>
                 <TouchableOpacity style={styles.pickerTrigger} onPress={() => setShowPicker(true)}>
@@ -158,13 +171,13 @@ export default function AddCredentialScreen() {
                     <Ionicons name="chevron-down" size={20} color="#007BFF" />
                 </TouchableOpacity>
 
+                {/* Pasamos nuestra nueva función handleSpecialChange que tiene la máscara de fecha */}
                 <SpecialCategoryForm category={category} formData={specialData} onChange={handleSpecialChange} isDark={true} />
 
                 {category !== 'pet' && category !== 'mobility' && (
                     <>
                         <Text style={styles.label}>Usuario / Email *</Text>
                         <TextInput style={styles.input} value={username} onChangeText={setUsername} autoCapitalize="none" placeholder="correo@ejemplo.com" placeholderTextColor="#666" />
-                        
                         <View style={styles.passwordHeader}>
                             <Text style={styles.labelPassword}>Contraseña *</Text>
                             <TouchableOpacity onPress={generatePassword}>

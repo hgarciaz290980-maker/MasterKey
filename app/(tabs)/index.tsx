@@ -48,11 +48,9 @@ export default function DashboardScreen() {
         { id: 'entertainment', label: 'Entretenimiento', icon: 'play-circle', color: '#e83e8c' },
     ];
 
-    // SOLUCIÓN ANDROID: Configuración de Canales y Permisos al iniciar
     useEffect(() => {
         async function configureNotifications() {
             if (Platform.OS === 'android') {
-                // 1. Crear el canal (Obligatorio Android 8+)
                 await Notifications.setNotificationChannelAsync('bunkerk-alerts', {
                     name: 'Alertas Bunker-K',
                     importance: Notifications.AndroidImportance.MAX,
@@ -60,133 +58,54 @@ export default function DashboardScreen() {
                     lightColor: '#007BFF',
                 });
             }
-
-            // 2. Pedir permisos (Obligatorio Android 13+)
             const { status: existingStatus } = await Notifications.getPermissionsAsync();
-            let finalStatus = existingStatus;
             if (existingStatus !== 'granted') {
-                const { status } = await Notifications.requestPermissionsAsync();
-                finalStatus = status;
-            }
-            if (finalStatus !== 'granted') {
-                console.log('Permisos de notificación rechazados');
+                await Notifications.requestPermissionsAsync();
             }
         }
         configureNotifications();
     }, []);
 
-    const syncMissedNotifications = async () => {
-        try {
-            const delivered = await Notifications.getPresentedNotificationsAsync();
-            if (delivered.length === 0) return;
-
-            const localStored = await getNotifications();
-            const localIds = new Set(localStored.map((n: any) => n.id));
-
-            for (const notification of delivered) {
-                const { identifier } = notification.request;
-                const { title, body, data } = notification.request.content;
-
-                if (!localIds.has(identifier)) {
-                    await saveNotification({
-                        id: identifier, 
-                        title: title || 'Bunker-K',
-                        description: (data as any)?.description || body || 'Recordatorio de cuenta',
-                        date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-                        type: (data as any)?.type || 'general',
-                        isRead: false,
-                        url: (data as any)?.url || undefined
-                    });
-                }
-            }
-        } catch (error) {
-            console.log("Error sincronizando:", error);
-        }
-    };
-
     const updateNotificationCount = async () => {
         try {
-            await syncMissedNotifications();
             const allNotifications = await getNotifications();
             const unread = allNotifications.filter((n: any) => !n.isRead).length;
             setUnreadCount(unread);
-        } catch (e) {
-            console.log("Error actualizando contador");
-        }
+        } catch (e) { console.log("Error contador"); }
     };
 
     useFocusEffect(
         useCallback(() => {
-            if (isAuthenticated) {
-                updateNotificationCount();
-            }
+            if (isAuthenticated) updateNotificationCount();
         }, [isAuthenticated])
     );
-
-    useEffect(() => {
-        if (isAuthenticated) {
-            const subscription = Notifications.addNotificationReceivedListener(() => {
-                updateNotificationCount();
-            });
-            return () => subscription.remove();
-        }
-    }, [isAuthenticated]);
 
    const [request, response, promptAsync] = Google.useAuthRequest({
         androidClientId: "619201497268-vcop7li7m3jdvib2je642d54tmpktkad.apps.googleusercontent.com",
         iosClientId: "619201497268-tk48sp2maotrqmsef0iidt8n822k0gqm.apps.googleusercontent.com",
         webClientId: "619201497268-64s3e67clg56f49t0q4hhr8bu3aeithu.apps.googleusercontent.com",
         scopes: ['https://www.googleapis.com/auth/drive.file'],
-    }, {
-        native: "com.mkpro01.masterkey://google-auth"
-    });
-
-    useEffect(() => {
-        if (response?.type === 'success') {
-            console.log("✅ Acceso concedido");
-        }
-    }, [response]);
+    }, { native: "com.mkpro01.masterkey://google-auth" });
 
     useEffect(() => {
         const checkSetup = async () => {
-            try {
-                const hasLaunched = await AsyncStorage.getItem('has_launched');
-                const storedName = await AsyncStorage.getItem('user_name');
-                if (!hasLaunched) {
-                    router.replace('/onboarding' as any);
-                } else if (storedName) {
-                    setUserName(storedName);
-                }
-            } catch (e) {
-                console.error("Error cargando configuración", e);
-            }
+            const hasLaunched = await AsyncStorage.getItem('has_launched');
+            const storedName = await AsyncStorage.getItem('user_name');
+            if (!hasLaunched) { router.replace('/onboarding' as any); }
+            else if (storedName) { setUserName(storedName); }
         };
         checkSetup();
     }, []);
 
     const authenticate = async () => {
-        try {
-            const result = await LocalAuthentication.authenticateAsync({
-                promptMessage: 'Acceso a Bunker-K', 
-                fallbackLabel: 'Usar PIN del sistema',
-            });
-            if (result.success) {
-                isAppUnlocked = true;
-                setIsAuthenticated(true);
-            }
-        } catch (e) {
-            console.error("Error en autenticación", e);
-        }
+        const result = await LocalAuthentication.authenticateAsync({
+            promptMessage: 'Acceso a Bunker-K', 
+            fallbackLabel: 'Usar PIN del sistema',
+        });
+        if (result.success) { isAppUnlocked = true; setIsAuthenticated(true); }
     };
 
-    useEffect(() => {
-        if (!isAppUnlocked) authenticate();
-    }, []); 
-
-    const handleSelectCategory = (type: string) => {
-        setShowTypeSelector(false);
-        router.push(`/add?type=${type}` as any);
-    };
+    useEffect(() => { if (!isAppUnlocked) authenticate(); }, []); 
 
     if (!isAuthenticated) {
         return (
@@ -201,26 +120,18 @@ export default function DashboardScreen() {
 
     return (
         <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-            <Stack.Screen 
-                options={{ 
-                    title: "Bunker-K", 
-                    headerShown: true, 
-                    headerShadowVisible: false,
-                    headerStyle: { backgroundColor: theme.background },
-                    headerTitleStyle: { color: theme.text, fontWeight: 'bold' },
-                    headerTintColor: theme.text, 
-                }} 
-            />
-            <ScrollView contentContainerStyle={styles.container}>
+            <Stack.Screen options={{ headerShown: false }} />
+            
+            <ScrollView contentContainerStyle={styles.container} bounces={false} showsVerticalScrollIndicator={false}>
                 
+                <View style={styles.brandContainer}>
+                    <Text style={[styles.brandText, { color: theme.primary }]}>Bunker-K</Text>
+                </View>
+
                 <View style={styles.headerRow}>
                     <Text style={[styles.welcomeText, { color: theme.text }]}>Hola, {userName}</Text>
-                    
-                    <TouchableOpacity 
-                        style={styles.notificationBtn}
-                        onPress={() => router.push('/notifications' as any)}
-                    >
-                        <Ionicons name="notifications-outline" size={28} color={theme.text} />
+                    <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push('/notifications' as any)}>
+                        <Ionicons name="notifications-outline" size={26} color={theme.text} />
                         {unreadCount > 0 && (
                             <View style={[styles.badge, { backgroundColor: theme.danger }]}>
                                 <Text style={styles.badgeText}>{unreadCount}</Text>
@@ -235,29 +146,29 @@ export default function DashboardScreen() {
                         style={[styles.mainCard, { backgroundColor: theme.card }]} 
                         onPress={() => router.push(`/list?filter=${cat.id}` as any)}
                     >
-                        <Ionicons name={cat.icon as any} size={25} color={cat.color} />
+                        <Ionicons name={cat.icon as any} size={22} color={cat.color} />
                         <Text style={[styles.cardTitle, { color: theme.text }]}> {cat.label}</Text>
                     </TouchableOpacity>
                 ))}
 
-                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, marginBottom: 30 }]} onPress={() => router.push('/list?filter=all' as any)}>
-                    <Ionicons name="key" size={25} color={theme.primary} />
+                <TouchableOpacity style={[styles.mainCard, { backgroundColor: theme.card, marginBottom: 15 }]} onPress={() => router.push('/list?filter=all' as any)}>
+                    <Ionicons name="key" size={22} color={theme.primary} />
                     <Text style={[styles.cardTitle, { color: theme.text }]}> Todas mis cuentas</Text>
                 </TouchableOpacity>
 
-                <View style={{ marginTop: -15 }}>
+                <View style={{ marginTop: 5 }}>
                     <Text style={[styles.sectionTitle, { color: theme.subText }]}>Herramientas</Text>
                     <View style={styles.toolsRow}>
                         { BackupManager && <BackupManager /> }
                     </View>
 
                     <TouchableOpacity 
-                        style={[styles.googleCard, { borderColor: theme.primary, marginTop: 15 }]} 
+                        style={[styles.googleCard, { borderColor: theme.primary, marginTop: 10 }]} 
                         onPress={() => promptAsync()}
                         disabled={!request}
                     >
-                        <Ionicons name="cloud-upload" size={20} color={theme.primary} />
-                        <Text style={[styles.googleText, { color: theme.text }]}> Vincular Google Drive</Text>
+                        <Ionicons name="cloud-upload" size={18} color={theme.primary} />
+                        <Text style={[styles.googleText, { color: theme.text, fontSize: 14 }]}> Vincular Google Drive</Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -270,20 +181,12 @@ export default function DashboardScreen() {
             </TouchableOpacity>
 
             <Modal visible={showTypeSelector} transparent animationType="slide">
-                <TouchableOpacity 
-                    style={styles.modalOverlay} 
-                    activeOpacity={1} 
-                    onPress={() => setShowTypeSelector(false)}
-                >
+                <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowTypeSelector(false)}>
                     <View style={[styles.modalContent, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <Text style={[styles.modalTitle, { color: theme.text }]}>¿Qué deseas agregar?</Text>
                         <View style={styles.gridContainer}>
                             {categories.map((cat) => (
-                                <TouchableOpacity 
-                                    key={cat.id} 
-                                    style={styles.gridItem}
-                                    onPress={() => handleSelectCategory(cat.id)}
-                                >
+                                <TouchableOpacity key={cat.id} style={styles.gridItem} onPress={() => { setShowTypeSelector(false); router.push(`/add?type=${cat.id}` as any); }}>
                                     <View style={[styles.iconCircle, { backgroundColor: cat.color + '20' }]}>
                                         <Ionicons name={cat.icon as any} size={28} color={cat.color} />
                                     </View>
@@ -291,10 +194,7 @@ export default function DashboardScreen() {
                                 </TouchableOpacity>
                             ))}
                         </View>
-                        <TouchableOpacity 
-                            style={styles.cancelButton} 
-                            onPress={() => setShowTypeSelector(false)}
-                        >
+                        <TouchableOpacity style={styles.cancelButton} onPress={() => setShowTypeSelector(false)}>
                             <Text style={{ color: '#DC3545', fontWeight: 'bold' }}>Cancelar</Text>
                         </TouchableOpacity>
                     </View>
@@ -306,28 +206,30 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
     safeArea: { flex: 1 },
-    container: { padding: 20 },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    welcomeText: { fontSize: 28, fontWeight: '800' },
+    container: { paddingHorizontal: 20, paddingBottom: 10, paddingTop: 55 },
+    brandContainer: { marginBottom: 2 },
+    brandText: { fontSize: 32, fontWeight: '900', letterSpacing: -1.5 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
+    welcomeText: { fontSize: 22, fontWeight: '600', opacity: 0.9 },
     notificationBtn: { position: 'relative', padding: 5 },
-    badge: { position: 'absolute', right: 0, top: 0, minWidth: 18, height: 18, borderRadius: 9, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFF' },
-    badgeText: { color: '#FFF', fontSize: 9, fontWeight: 'bold' },
-    mainCard: { flexDirection: 'row', alignItems: 'center', padding: 15, borderRadius: 15, marginBottom: 15, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3 },
-    cardTitle: { fontSize: 18, fontWeight: '600', marginLeft: 10 },
-    sectionTitle: { fontSize: 14, fontWeight: 'bold', marginBottom: 15 },
-    toolsRow: { marginBottom: 10 },
-    googleCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, borderRadius: 15, borderStyle: 'dashed', borderWidth: 1, marginTop: 5 },
-    googleText: { fontSize: 16, fontWeight: '600', marginLeft: 10 },
-    fab: { position: 'absolute', bottom: 20, right: 25, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: "#000", shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4.65 },
+    badge: { position: 'absolute', right: 0, top: 0, minWidth: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#FFF' },
+    badgeText: { color: '#FFF', fontSize: 8, fontWeight: 'bold' },
+    mainCard: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, marginBottom: 10, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 },
+    cardTitle: { fontSize: 16, fontWeight: '600', marginLeft: 10 },
+    sectionTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 },
+    toolsRow: { marginBottom: 5 },
+    googleCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 12, borderStyle: 'dashed', borderWidth: 1 },
+    googleText: { fontWeight: '600', marginLeft: 10 },
+    fab: { position: 'absolute', bottom: 250, right: 20, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 4 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     authButton: { marginTop: 20, padding: 15, borderRadius: 10 },
     authButtonText: { color: '#FFF', fontWeight: 'bold' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
-    modalContent: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, borderWidth: 1, minHeight: 420 },
-    modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' },
+    modalContent: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, borderWidth: 1, minHeight: 400 },
+    modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-    gridItem: { width: '30%', alignItems: 'center', marginBottom: 25 },
-    iconCircle: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
-    gridLabel: { fontSize: 12, fontWeight: '600', textAlign: 'center' },
-    cancelButton: { marginTop: 10, padding: 15, alignItems: 'center' }
+    gridItem: { width: '30%', alignItems: 'center', marginBottom: 20 },
+    iconCircle: { width: 55, height: 55, borderRadius: 27.5, justifyContent: 'center', alignItems: 'center', marginBottom: 5 },
+    gridLabel: { fontSize: 11, fontWeight: '600', textAlign: 'center' },
+    cancelButton: { marginTop: 5, padding: 10, alignItems: 'center' }
 });

@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "com.mkpro01.masterkey",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -15,7 +15,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#121212"
       },
       "package": "com.mkpro01.masterkey",
       "permissions": [
@@ -33,21 +33,7 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      [
-        "expo-web-browser",
-        {
-          "projectIds": [
-            "6020aa16-6d5d-4544-ab3f-b49cba01b3b1"
-          ]
-        }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/icon.png",
-          "color": "#007BFF"
-        }
-      ]
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true

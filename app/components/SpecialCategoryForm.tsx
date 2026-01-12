@@ -13,45 +13,28 @@ export default function SpecialCategoryForm({ category, formData, onChange, isDa
         success: '#28A745'
     };
 
+    // --- LÓGICA DE MÁSCARA DE FECHA ---
+    const handleDateChange = (text: string, field: string) => {
+        // Quitamos cualquier caracter que no sea número
+        const cleaned = text.replace(/\D/g, '');
+        let formatted = cleaned;
+
+        if (cleaned.length > 2) {
+            formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+        }
+        if (cleaned.length > 4) {
+            formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
+        }
+        
+        // Enviamos el texto ya formateado con diagonales al componente padre
+        onChange(field, formatted.slice(0, 10));
+    };
+
     const petTypes = [
         { id: 'perro', label: 'Perro', icon: 'paw' },
         { id: 'gato', label: 'Gato', icon: 'logo-github' },
         { id: 'otro', label: 'Otro', icon: 'help-circle' }
     ];
-
-    // Componente interno para la selección de hora (Reutilizable)
-    const TimePicker = ({ label, dateKey, timeKey, periodKey }: any) => (
-        <View style={{ marginTop: 10, marginBottom: 20 }}>
-            <Text style={[styles.sectionTitle, { color: theme.accent }]}>PROGRAMAR ALERTA</Text>
-            <Text style={[styles.label, { color: theme.text }]}>{label}</Text>
-            <TextInput 
-                style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} 
-                value={formData[dateKey]} 
-                onChangeText={(v) => onChange(dateKey, v)} 
-                placeholder="DD/MM/AAAA" 
-            />
-            <View style={styles.row}>
-                <TextInput 
-                    style={[styles.input, { flex: 1, backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border, marginRight: 10 }]} 
-                    value={formData[timeKey]} 
-                    onChangeText={(v) => onChange(timeKey, v)} 
-                    placeholder="HH:MM" 
-                    keyboardType="numeric"
-                />
-                <View style={styles.periodContainer}>
-                    {['AM', 'PM'].map((p) => (
-                        <TouchableOpacity 
-                            key={p} 
-                            onPress={() => onChange(periodKey, p)}
-                            style={[styles.periodBtn, { backgroundColor: formData[periodKey] === p ? theme.accent : theme.inputBg, borderColor: theme.border }]}
-                        >
-                            <Text style={{ color: formData[periodKey] === p ? '#FFF' : theme.text, fontSize: 10, fontWeight: 'bold' }}>{p}</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-            </View>
-        </View>
-    );
 
     if (category === 'pet') {
         return (
@@ -71,27 +54,31 @@ export default function SpecialCategoryForm({ category, formData, onChange, isDa
                 </View>
 
                 <Text style={[styles.label, { color: theme.text }]}>Raza</Text>
-                <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.petNombre} onChangeText={(v) => onChange('petNombre', v)} placeholder="Ej: Beagle / Siamés" />
-
-                <TimePicker label="Próxima Vacuna / Cita" dateKey="petFechaAlerta" timeKey="petHoraAlerta" periodKey="petPeriodoAlerta" />
+                <TextInput 
+                    style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} 
+                    value={formData.petNombre} 
+                    onChangeText={(v) => onChange('petNombre', v)} 
+                    placeholder="Ej: Beagle / Siamés" 
+                    placeholderTextColor="#666"
+                />
 
                 <View style={styles.row}>
                     <View style={{ flex: 1, marginRight: 10 }}>
                         <Text style={[styles.label, { color: theme.text }]}>Sangre</Text>
-                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.petSangre} onChangeText={(v) => onChange('petSangre', v)} placeholder="Tipo" />
+                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.petSangre} onChangeText={(v) => onChange('petSangre', v)} placeholder="Tipo" placeholderTextColor="#666" />
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={[styles.label, { color: theme.text }]}>Chip</Text>
-                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.petChip} onChangeText={(v) => onChange('petChip', v)} placeholder="N°" />
+                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.petChip} onChangeText={(v) => onChange('petChip', v)} placeholder="N°" placeholderTextColor="#666" />
                     </View>
                 </View>
 
                 <Text style={[styles.label, { color: theme.text }]}>Nombre del Veterinario</Text>
-                <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.petVeterinario} onChangeText={(v) => onChange('petVeterinario', v)} placeholder="Nombre del Dr." />
+                <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.petVeterinario} onChangeText={(v) => onChange('petVeterinario', v)} placeholder="Nombre del Dr." placeholderTextColor="#666" />
 
                 <Text style={[styles.label, { color: theme.text }]}>Teléfono de Emergencia</Text>
                 <View style={styles.phoneInputRow}>
-                    <TextInput style={[styles.input, { flex: 1, backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border, marginBottom: 0 }]} value={formData.petVeterinarioTelefono} onChangeText={(v) => onChange('petVeterinarioTelefono', v)} keyboardType="phone-pad" placeholder="Teléfono" />
+                    <TextInput style={[styles.input, { flex: 1, backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border, marginBottom: 0 }]} value={formData.petVeterinarioTelefono} onChangeText={(v) => onChange('petVeterinarioTelefono', v)} keyboardType="phone-pad" placeholder="Teléfono" placeholderTextColor="#666" />
                     {formData.petVeterinarioTelefono && (
                         <TouchableOpacity style={[styles.callBtn, { backgroundColor: theme.success }]} onPress={() => Linking.openURL(`tel:${formData.petVeterinarioTelefono}`)}>
                             <Ionicons name="call" size={20} color="#FFF" />
@@ -109,24 +96,22 @@ export default function SpecialCategoryForm({ category, formData, onChange, isDa
                 <View style={styles.row}>
                     <View style={{ flex: 1, marginRight: 10 }}>
                         <Text style={[styles.label, { color: theme.text }]}>Marca</Text>
-                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.autoMarca} onChangeText={(v) => onChange('autoMarca', v)} placeholder="Ej: Toyota" />
+                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.autoMarca} onChangeText={(v) => onChange('autoMarca', v)} placeholder="Ej: Toyota" placeholderTextColor="#666" />
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={[styles.label, { color: theme.text }]}>Modelo</Text>
-                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.autoModelo} onChangeText={(v) => onChange('autoModelo', v)} placeholder="Ej: Corolla" />
+                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.autoModelo} onChangeText={(v) => onChange('autoModelo', v)} placeholder="Ej: Corolla" placeholderTextColor="#666" />
                     </View>
                 </View>
-
-                <TimePicker label="Próximo Servicio / Vencimiento" dateKey="autoFechaAlerta" timeKey="autoHoraAlerta" periodKey="autoPeriodoAlerta" />
 
                 <View style={styles.row}>
                     <View style={{ flex: 1, marginRight: 10 }}>
                         <Text style={[styles.label, { color: theme.text }]}>Año</Text>
-                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.autoAnio} onChangeText={(v) => onChange('autoAnio', v)} keyboardType="numeric" placeholder="2024" />
+                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.autoAnio} onChangeText={(v) => onChange('autoAnio', v)} keyboardType="numeric" placeholder="2024" placeholderTextColor="#666" />
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={[styles.label, { color: theme.text }]}>Placas</Text>
-                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.autoPlacas} onChangeText={(v) => onChange('autoPlacas', v)} autoCapitalize="characters" placeholder="ABC-1234" />
+                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.autoPlacas} onChangeText={(v) => onChange('autoPlacas', v)} autoCapitalize="characters" placeholder="ABC-1234" placeholderTextColor="#666" />
                     </View>
                 </View>
 
@@ -134,11 +119,19 @@ export default function SpecialCategoryForm({ category, formData, onChange, isDa
                 <View style={styles.row}>
                     <View style={{ flex: 1, marginRight: 10 }}>
                         <Text style={[styles.label, { color: theme.text }]}>Póliza</Text>
-                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.autoPoliza} onChangeText={(v) => onChange('autoPoliza', v)} placeholder="N°" />
+                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.autoPoliza} onChangeText={(v) => onChange('autoPoliza', v)} placeholder="N°" placeholderTextColor="#666" />
                     </View>
                     <View style={{ flex: 1 }}>
                         <Text style={[styles.label, { color: theme.text }]}>Vence</Text>
-                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.autoVencimientoPoliza} onChangeText={(v) => onChange('autoVencimientoPoliza', v)} placeholder="DD/MM/AAAA" />
+                        <TextInput 
+                            style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} 
+                            value={formData.autoVencimientoPoliza} 
+                            onChangeText={(v) => handleDateChange(v, 'autoVencimientoPoliza')} 
+                            keyboardType="numeric"
+                            placeholder="DD/MM/AAAA" 
+                            placeholderTextColor="#666"
+                            maxLength={10}
+                        />
                     </View>
                 </View>
             </View>
@@ -155,8 +148,6 @@ const styles = StyleSheet.create({
     label: { fontSize: 12, marginBottom: 5, fontWeight: '600' },
     input: { padding: 12, borderRadius: 10, borderWidth: 1, marginBottom: 15 },
     row: { flexDirection: 'row' },
-    periodContainer: { flexDirection: 'row', height: 48 },
-    periodBtn: { paddingHorizontal: 12, justifyContent: 'center', borderRadius: 10, borderWidth: 1, marginLeft: 5 },
     phoneInputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15 },
     callBtn: { width: 45, height: 45, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginLeft: 10 }
 });

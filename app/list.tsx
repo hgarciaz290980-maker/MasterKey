@@ -1,4 +1,4 @@
-// app/list.tsx (CON BOTÓN INTELIGENTE)
+// app/list.tsx (CON BOTÓN EN EL HEADER)
 
 import React, { useState, useCallback } from 'react';
 import { 
@@ -10,13 +10,16 @@ import {
     TextInput, 
     TouchableOpacity,
     Platform,
-    useColorScheme 
+    useColorScheme,
+    Dimensions
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { getAllCredentials, Credential } from '../storage/credentials';
 import CredentialCard from './components/CredentialCard'; 
+
+const { width } = Dimensions.get('window');
 
 export default function ListScreen() {
     const router = useRouter();
@@ -30,7 +33,7 @@ export default function ListScreen() {
         card: isDark ? '#1E1E1E' : '#FFFFFF',
         subText: isDark ? '#ADB5BD' : '#6C757D',
         border: isDark ? '#333333' : '#E9ECEF',
-        primary: isDark ? '#3DA9FC' : '#007BFF',
+        primary: '#007BFF',
         input: isDark ? '#2C2C2C' : '#FFFFFF'
     };
     
@@ -44,25 +47,18 @@ export default function ListScreen() {
             const sortedData = data.sort((a, b) => 
                 a.accountName.toLowerCase().localeCompare(b.accountName.toLowerCase())
             );
-
             let result = sortedData;
-
             if (filter && filter !== 'all') {
                 result = sortedData.filter((c: Credential) => c.category === filter);
             }
-
             setAllCredentials(result);
             setFilteredData(result);
         } catch (error) {
-            console.error("Error al cargar datos en la lista:", error);
+            console.error("Error al cargar datos:", error);
         }
     };
 
-    useFocusEffect(
-        useCallback(() => {
-            loadData();
-        }, [filter])
-    );
+    useFocusEffect(useCallback(() => { loadData(); }, [filter]));
 
     const handleSearch = (text: string) => {
         setSearchQuery(text);
@@ -86,18 +82,12 @@ export default function ListScreen() {
             mobility: "Movilidad",
             entertainment: "Entretenimiento"
         };
-        return titles[filter as string] || "Todas mis Cuentas";
+        return titles[filter as string] || "Cuentas";
     };
 
-    // --- MEJORA: LÓGICA DEL BOTÓN FLOTANTE ---
-    const handleFabPress = () => {
-        // Si estamos en una categoría específica (ej. 'pet'), se la pasamos a la pantalla add
-        // Si estamos en 'all' o no hay filtro, simplemente va a /add normal
+    const handleAddPress = () => {
         if (filter && filter !== 'all') {
-            router.push({
-                pathname: '/add',
-                params: { type: filter } // Pasamos el tipo para que el formulario se abra ya configurado
-            });
+            router.push({ pathname: '/add', params: { type: filter } });
         } else {
             router.push('/add');
         }
@@ -105,11 +95,20 @@ export default function ListScreen() {
 
     return (
         <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+            {/* BOTÓN EN EL HEADER (Superior Derecha) */}
             <Stack.Screen options={{ 
                 title: getTitle(),
                 headerShown: true,
                 headerStyle: { backgroundColor: theme.background },
                 headerTintColor: theme.text,
+                headerRight: () => (
+                    <TouchableOpacity 
+                        onPress={handleAddPress}
+                        style={{ marginRight: 15 }}
+                    >
+                        <Ionicons name="add-circle" size={32} color={theme.primary} />
+                    </TouchableOpacity>
+                ),
             }} />
             
             <View style={styles.mainContainer}>
@@ -123,11 +122,6 @@ export default function ListScreen() {
                         onChangeText={handleSearch}
                         autoCapitalize="none"
                     />
-                    {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => handleSearch('')}>
-                            <Ionicons name="close-circle" size={20} color={theme.subText} />
-                        </TouchableOpacity>
-                    )}
                 </View>
 
                 <FlatList 
@@ -148,41 +142,25 @@ export default function ListScreen() {
                     }
                 />
             </View>
-
-            {/* BOTÓN FLOTANTE INTELIGENTE */}
-            <TouchableOpacity 
-                style={[styles.fab, { backgroundColor: '#007BFF', zIndex: 9999 }]}
-                onPress={handleFabPress}
-                activeOpacity={0.8}
-            >
-                <Ionicons name="add" size={40} color="#FFFFFF" />
-            </TouchableOpacity>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     safeArea: { flex: 1 },
-    mainContainer: { 
-        flex: 1, 
-        paddingHorizontal: 12,
-        paddingTop: Platform.OS === 'android' ? 10 : 10, 
-    },
+    mainContainer: { flex: 1, paddingHorizontal: 12 },
     searchBar: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 15,
-        height: 55,
-        borderRadius: 14,
+        height: 50,
+        borderRadius: 12,
         marginTop: 10,
         marginBottom: 15,
-        marginHorizontal: 5,
         borderWidth: 1,
-        elevation: 2,
     },
     searchInput: { flex: 1, fontSize: 16 },
-    listContent: { paddingBottom: 120 }, 
+    listContent: { paddingBottom: 20 }, 
     emptyState: { alignItems: 'center', marginTop: 50 },
     emptyText: { fontSize: 16 },
-    fab: { position: 'absolute', bottom: 150, right: 20, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 4 },
 });

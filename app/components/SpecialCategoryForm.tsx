@@ -64,11 +64,11 @@ export default function SpecialCategoryForm({ category, formData, onChange, isDa
 
                 <View style={styles.row}>
                     <View style={{ flex: 1, marginRight: 10 }}>
-                        <Text style={[styles.label, { color: theme.text }]}>Sangre</Text>
-                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.petSangre} onChangeText={(v) => onChange('petSangre', v)} placeholder="Tipo" placeholderTextColor="#666" />
+                        <Text style={[styles.label, { color: theme.text }]}>Tipo de Sangre</Text>
+                        <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.petSangre} onChangeText={(v) => onChange('petSangre', v)} placeholder="Ej: DEA 1.1." placeholderTextColor="#666" />
                     </View>
                     <View style={{ flex: 1 }}>
-                        <Text style={[styles.label, { color: theme.text }]}>Chip</Text>
+                        <Text style={[styles.label, { color: theme.text }]}>No. de Chip o Tatuaje</Text>
                         <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.petChip} onChangeText={(v) => onChange('petChip', v)} placeholder="N°" placeholderTextColor="#666" />
                     </View>
                 </View>
@@ -76,7 +76,7 @@ export default function SpecialCategoryForm({ category, formData, onChange, isDa
                 <Text style={[styles.label, { color: theme.text }]}>Nombre del Veterinario</Text>
                 <TextInput style={[styles.input, { backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border }]} value={formData.petVeterinario} onChangeText={(v) => onChange('petVeterinario', v)} placeholder="Nombre del Dr." placeholderTextColor="#666" />
 
-                <Text style={[styles.label, { color: theme.text }]}>Teléfono de Emergencia</Text>
+                <Text style={[styles.label, { color: theme.text }]}>Teléfono del Veterinario</Text>
                 <View style={styles.phoneInputRow}>
                     <TextInput style={[styles.input, { flex: 1, backgroundColor: theme.inputBg, color: theme.inputText, borderColor: theme.border, marginBottom: 0 }]} value={formData.petVeterinarioTelefono} onChangeText={(v) => onChange('petVeterinarioTelefono', v)} keyboardType="phone-pad" placeholder="Teléfono" placeholderTextColor="#666" />
                     {formData.petVeterinarioTelefono && (

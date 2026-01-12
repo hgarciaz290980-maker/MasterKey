@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { 
     View, Text, StyleSheet, SafeAreaView, ActivityIndicator, 
     TouchableOpacity, Alert, ScrollView, Switch, 
-    useColorScheme, Linking, Modal, Platform
+    useColorScheme, Linking, Modal, Platform, Dimensions // <-- Añadido Dimensions
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,6 +12,9 @@ import * as Notifications from 'expo-notifications';
 
 import { getCredentialById, updateCredential, deleteCredential, Reminder } from '../../storage/credentials'; 
 import EditCredentialModal from '../components/EditCredentialModal'; 
+
+// Obtenemos dimensiones para cálculos responsivos
+const { height, width } = Dimensions.get('window');
 
 type EditableKeys = 'accountName' | 'alias' | 'username' | 'password' | 'notes' | 'category' | 
                    'petTipo' | 'petNombre' | 'petSangre' | 'petChip' | 'petVacunas' | 
@@ -61,6 +64,7 @@ export default function CredentialDetailsScreen() {
         { id: 'entertainment', label: 'Entretenimiento' },
     ];
 
+    // ETIQUETAS ACTUALIZADAS SEGÚN TU SOLICITUD
     const fieldLabels: Record<string, string> = {
         accountName: 'Nombre', alias: 'Alias', username: 'Usuario', password: 'Contraseña',
         notes: 'Notas', petTipo: 'Tipo de Mascota', petNombre: 'Raza',
@@ -70,8 +74,10 @@ export default function CredentialDetailsScreen() {
         autoAseguradoraNombre: 'Aseguradora', autoPoliza: 'Póliza', autoVencimientoPoliza: 'Vencimiento',
         autoAseguradoraTelefono: 'Teléfono de Siniestros', autoLlantaAncho: 'Ancho de Llanta',
         autoLlantaPerfil: 'Perfil de Llanta', autoLlantaRin: 'Rin', autoNoCircula: 'Hoy No Circula',
-        autoDiaNoCircula: 'Día de Restricción', autoAceiteFecha: 'Fecha Aceite',
-        autoFrenosFecha: 'Fecha Frenos', autoAfinacionFecha: 'Fecha Afinación'
+        autoDiaNoCircula: 'Día de Restricción', 
+        autoAceiteFecha: 'Último cambio de aceite',
+        autoFrenosFecha: 'Último cambio de frenos', 
+        autoAfinacionFecha: 'Último servicio de afinación'
     };
 
     const fetchCredential = async () => {
@@ -125,22 +131,17 @@ export default function CredentialDetailsScreen() {
 
     const scheduleReminders = async () => {
         if (!credential.hasReminder || !credential.reminders) return;
-
         await Notifications.cancelAllScheduledNotificationsAsync();
-
         for (const rem of credential.reminders) {
             if (rem.date && rem.time) {
                 try {
                     const [day, month, year] = rem.date.split('/').map(Number);
                     const [timeStr, period] = rem.time.split(' ');
                     let [hours, minutes] = timeStr.split(':').map(Number);
-
                     if (period === 'PM' && hours < 12) hours += 12;
                     if (period === 'AM' && hours === 12) hours = 0;
-
                     const scheduledDate = new Date(year, month - 1, day, hours, minutes, 0);
                     const secondsToWait = Math.round((scheduledDate.getTime() - Date.now()) / 1000);
-
                     if (secondsToWait > 0) {
                         await Notifications.scheduleNotificationAsync({
                             content: {
@@ -148,21 +149,12 @@ export default function CredentialDetailsScreen() {
                                 body: `${rem.note || 'Tarea pendiente'} (${credential.accountName})`,
                                 priority: Notifications.AndroidNotificationPriority.MAX,
                                 sound: true,
-                                data: { 
-                                    url: `/details/${id}`,
-                                    type: credential.category === 'pet' ? 'pet' : 'general',
-                                    description: rem.note || 'Revisar detalles'
-                                },
+                                data: { url: `/details/${id}`, type: credential.category === 'pet' ? 'pet' : 'general', description: rem.note || 'Revisar detalles' },
                             },
-                            trigger: { 
-                                type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-                                seconds: secondsToWait 
-                            } as any,
+                            trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: secondsToWait } as any,
                         });
                     }
-                } catch (err) {
-                    console.error("Error al procesar recordatorio:", err);
-                }
+                } catch (err) { console.error("Error al procesar recordatorio:", err); }
             }
         }
     };
@@ -171,13 +163,8 @@ export default function CredentialDetailsScreen() {
         try {
             await updateCredential(credential);
             await scheduleReminders();
-            Alert.alert("Éxito", "Bunker actualizado", [{ 
-                text: "OK", 
-                onPress: () => { setHasUnsavedChanges(false); router.back(); } 
-            }]);
-        } catch (error) { 
-            Alert.alert("Error", "No se pudieron guardar los cambios"); 
-        }
+            Alert.alert("Éxito", "Bunker actualizado", [{ text: "OK", onPress: () => { setHasUnsavedChanges(false); router.back(); } }]);
+        } catch (error) { Alert.alert("Error", "No se pudieron guardar los cambios"); }
     };
 
     const handleDelete = () => {
@@ -218,7 +205,12 @@ export default function CredentialDetailsScreen() {
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
             <Stack.Screen options={{ title: "Detalles del Registro" }} />
-            <ScrollView contentContainerStyle={{ padding: 20 }}>
+            <ScrollView 
+                contentContainerStyle={[styles.scrollContent, { paddingBottom: height * 0.15 }]} // Ajuste responsivo inferior
+                showsVerticalScrollIndicator={false}
+            >
+                {/* --- LÍNEA AGREGADA: ESPACIADOR DE CHOQUE --- */}
+                <View style={{ height: 20 }} />
                 
                 <Text style={[styles.sectionTitle, { color: theme.primary }]}>INFORMACIÓN GENERAL</Text>
                 
@@ -269,7 +261,7 @@ export default function CredentialDetailsScreen() {
                         </View>
 
                         <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 30 }]}>MANTENIMIENTO</Text>
-                        <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>Especificaciones Llantas</Text>
+                        <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>Especificación de las llantas</Text>
                         <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Text style={[styles.infoValue, { color: theme.text, flex: 1 }]}>
                                 {credential.autoLlantaAncho || '---'} / {credential.autoLlantaPerfil || '---'} {credential.autoLlantaRin || '---'}
@@ -284,9 +276,10 @@ export default function CredentialDetailsScreen() {
                             <View style={{ width: '48%' }}>{renderRow('Día', 'autoDiaNoCircula', credential.autoDiaNoCircula)}</View>
                         </View>
 
-                        {renderRow('Último Aceite', 'autoAceiteFecha', credential.autoAceiteFecha)}
-                        {renderRow('Últimos Frenos', 'autoFrenosFecha', credential.autoFrenosFecha)}
-                        {renderRow('Última Afinación', 'autoAfinacionFecha', credential.autoAfinacionFecha)}
+                        {/* NOMBRES ACTUALIZADOS AQUÍ TAMBIÉN */}
+                        {renderRow('Último cambio de aceite', 'autoAceiteFecha', credential.autoAceiteFecha)}
+                        {renderRow('Último cambio de frenos', 'autoFrenosFecha', credential.autoFrenosFecha)}
+                        {renderRow('Último servicio de afinación', 'autoAfinacionFecha', credential.autoAfinacionFecha)}
                     </>
                 )}
 
@@ -294,8 +287,8 @@ export default function CredentialDetailsScreen() {
                     <>
                         <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>FICHA MÉDICA 🐾</Text>
                         {renderRow('Raza', 'petNombre', credential.petNombre)}
-                        {renderRow('Sangre', 'petSangre', credential.petSangre)}
-                        {renderRow('Vacunas / Alergias', 'petVacunas', credential.petVacunas)}
+                        {renderRow('Tipo de Sangre', 'petSangre', credential.petSangre)}
+                        {renderRow('Alergias', 'petVacunas', credential.petVacunas)}
                         <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>EMERGENCIA</Text>
                         {renderRow('Nombre del Veterinario', 'petVeterinario', credential.petVeterinario)}
                         <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.callButton, borderLeftWidth: 4 }]}>
@@ -411,7 +404,13 @@ export default function CredentialDetailsScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    sectionTitle: { fontSize: 11, fontWeight: 'bold', marginBottom: 12, letterSpacing: 1.5, textTransform: 'uppercase' },
+    // Ajuste responsivo para el contenido interno
+    scrollContent: { 
+        paddingHorizontal: width * 0.05, 
+        paddingTop: Platform.OS === 'ios' ? 40 : 35, 
+        paddingBottom: height * 0.15 
+    },
+    sectionTitle: { fontSize: 11, fontWeight: 'bold', marginBottom: 15, letterSpacing: 1.5, textTransform: 'uppercase' },
     infoRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 14, borderWidth: 1, marginBottom: 5 },
     infoLabel: { fontSize: 11, fontWeight: '700' },
     infoValue: { fontSize: 16 },
@@ -423,7 +422,7 @@ const styles = StyleSheet.create({
     divider: { height: 1, backgroundColor: '#E9ECEF', marginHorizontal: 12 },
     addReminderBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, marginTop: 5, marginBottom: 20 },
     addReminderText: { fontWeight: 'bold', marginLeft: 8, fontSize: 14 },
-    footerButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, marginBottom: 50 },
+    footerButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, marginBottom: 20 },
     actionButton: { flex: 0.48, height: 55, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     buttonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15, marginLeft: 8 },
     pickerTrigger: { padding: 15, borderRadius: 10, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },

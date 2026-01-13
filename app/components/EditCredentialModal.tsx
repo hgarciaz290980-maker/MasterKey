@@ -10,10 +10,11 @@ interface EditModalProps {
   fieldLabel: string;
   initialValue: string;
   keyboardType?: KeyboardTypeOptions;
+  placeholder?: string;
 }
 
 export default function EditCredentialModal({ 
-  isVisible, onClose, onSave, fieldLabel, initialValue, keyboardType = 'default' 
+  isVisible, onClose, onSave, fieldLabel, initialValue, keyboardType = 'default', placeholder 
 }: EditModalProps) {
   const [value, setValue] = useState(initialValue);
   const [period, setPeriod] = useState('AM');
@@ -39,26 +40,34 @@ export default function EditCredentialModal({
     fieldLabel.toLowerCase().includes('password') || 
     fieldLabel.toLowerCase().includes('clave');
 
-  const generatePassword = () => {
-    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-    let res = "";
-    for (let i = 0; i < 16; i++) res += charset.charAt(Math.floor(Math.random() * charset.length));
-    setValue(res);
-  };
+  const isDateField = 
+    fieldLabel === 'Fecha' || 
+    fieldLabel.toLowerCase().includes('vencimiento') || 
+    fieldLabel.toLowerCase().includes('mantenimiento') ||
+    fieldLabel.toLowerCase().includes('aceite') ||
+    fieldLabel.toLowerCase().includes('frenos') ||
+    fieldLabel.toLowerCase().includes('afinación');
 
-  const copyToClipboard = async () => {
-    await Clipboard.setStringAsync(value);
-    Alert.alert("Copiado", "Contraseña copiada al portapapeles");
-  };
+  const isTireField = fieldLabel.toLowerCase().includes('llanta');
 
   const handleTextChange = (text: string) => {
-    if (fieldLabel === 'Fecha') {
-      let cleaned = text.replace(/[^0-9]/g, '');
-      if (cleaned.length > 8) cleaned = cleaned.substring(0, 8);
+    if (isTireField) {
+      // 1. Limpiar caracteres y forzar mayúsculas
+      let cleaned = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
       let formatted = cleaned;
-      if (cleaned.length > 2) formatted = `${cleaned.substring(0, 2)}/${cleaned.substring(2)}`;
-      if (cleaned.length > 4) formatted = `${cleaned.substring(0, 2)}/${cleaned.substring(2, 4)}/${cleaned.substring(4)}`;
-      setValue(formatted);
+
+      // 2. Aplicar regla: 3 números + / + 5 alfanuméricos
+      if (cleaned.length > 3) {
+        formatted = `${cleaned.slice(0, 3)}/${cleaned.slice(3, 8)}`;
+      }
+      
+      setValue(formatted.slice(0, 9)); // Largo máximo: 3 (num) + 1 (/) + 5 (alfa) = 9
+    } else if (isDateField) {
+      const cleaned = text.replace(/\D/g, '');
+      let formatted = cleaned;
+      if (cleaned.length > 2) formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+      if (cleaned.length > 4) formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
+      setValue(formatted.slice(0, 10));
     } else if (fieldLabel === 'Hora') {
       let cleaned = text.replace(/[^0-9]/g, '');
       if (cleaned.length > 4) cleaned = cleaned.substring(0, 4);
@@ -70,14 +79,10 @@ export default function EditCredentialModal({
     }
   };
 
-  // Función para validar y formatear antes de enviar
   const handleConfirm = () => {
     if (fieldLabel === 'Hora') {
-      // Validamos que la hora sea lógica (00-12) antes de guardar
       const [h, m] = value.split(':');
-      const hourNum = parseInt(h);
-      const minNum = parseInt(m);
-      if (hourNum > 12 || minNum > 59) {
+      if (parseInt(h) > 12 || parseInt(m) > 59) {
         Alert.alert("Error", "Por favor ingresa una hora válida (01-12)");
         return;
       }
@@ -93,16 +98,6 @@ export default function EditCredentialModal({
         <View style={styles.modalContent}>
           <View style={styles.headerRow}>
             <Text style={styles.label}>{fieldLabel}</Text>
-            {isPasswordField && (
-              <View style={styles.passwordActions}>
-                <TouchableOpacity onPress={copyToClipboard} style={styles.actionIcon}>
-                  <Ionicons name="copy-outline" size={20} color="#007BFF" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={generatePassword}>
-                  <Text style={styles.generateText}>Generar nueva</Text>
-                </TouchableOpacity>
-              </View>
-            )}
           </View>
 
           <View style={styles.inputContainer}>
@@ -111,27 +106,19 @@ export default function EditCredentialModal({
               value={value}
               onChangeText={handleTextChange}
               autoFocus={true}
-              keyboardType={keyboardType}
+              keyboardType={isTireField ? 'default' : keyboardType}
               secureTextEntry={isPasswordField && !showPassword}
-              placeholder={fieldLabel === 'Fecha' ? "DD/MM/AAAA" : fieldLabel === 'Hora' ? "00:00" : "Escribe aquí..."}
+              autoCapitalize={isTireField ? 'characters' : 'none'}
+              placeholder={placeholder || (isDateField ? "DD/MM/AAAA" : "Escribe aquí...")}
               placeholderTextColor="#666"
-              maxLength={fieldLabel === 'Fecha' ? 10 : fieldLabel === 'Hora' ? 5 : undefined}
+              maxLength={isDateField ? 10 : fieldLabel === 'Hora' ? 5 : isTireField ? 9 : undefined}
             />
-            {isPasswordField && (
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.innerIcon}>
-                <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#007BFF" />
-              </TouchableOpacity>
-            )}
           </View>
 
           {fieldLabel === 'Hora' && (
             <View style={styles.periodContainer}>
               {['AM', 'PM'].map((p) => (
-                <TouchableOpacity 
-                  key={p} 
-                  onPress={() => setPeriod(p)}
-                  style={[styles.periodBtn, period === p && styles.periodBtnActive]}
-                >
+                <TouchableOpacity key={p} onPress={() => setPeriod(p)} style={[styles.periodBtn, period === p && styles.periodBtnActive]}>
                   <Text style={{ color: period === p ? '#FFF' : '#ADB5BD', fontWeight: 'bold' }}>{p}</Text>
                 </TouchableOpacity>
               ))}
@@ -139,15 +126,8 @@ export default function EditCredentialModal({
           )}
 
           <View style={styles.buttonContainer}>
-            <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
-              <Text style={styles.cancelText}>Cancelar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={handleConfirm} 
-              style={styles.saveBtn}
-            >
-              <Text style={styles.saveText}>Confirmar</Text>
-            </TouchableOpacity>
+            <TouchableOpacity onPress={onClose} style={styles.cancelBtn}><Text style={styles.cancelText}>Cancelar</Text></TouchableOpacity>
+            <TouchableOpacity onPress={handleConfirm} style={styles.saveBtn}><Text style={styles.saveText}>Confirmar</Text></TouchableOpacity>
           </View>
         </View>
       </View>
@@ -160,12 +140,8 @@ const styles = StyleSheet.create({
   modalContent: { backgroundColor: '#1E1E1E', borderRadius: 20, padding: 25, borderWidth: 1, borderColor: '#333' },
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   label: { fontSize: 14, fontWeight: 'bold', color: '#ADB5BD' },
-  passwordActions: { flexDirection: 'row', alignItems: 'center' },
-  actionIcon: { marginRight: 15 },
-  generateText: { color: '#007BFF', fontSize: 12, fontWeight: 'bold' },
   inputContainer: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#007BFF', marginBottom: 25 },
   input: { flex: 1, paddingVertical: 10, fontSize: 18, color: '#FFF' },
-  innerIcon: { paddingHorizontal: 10 },
   periodContainer: { flexDirection: 'row', justifyContent: 'center', marginBottom: 25 },
   periodBtn: { paddingVertical: 8, paddingHorizontal: 20, marginHorizontal: 5, borderRadius: 8, borderWidth: 1, borderColor: '#333' },
   periodBtnActive: { backgroundColor: '#007BFF', borderColor: '#007BFF' },

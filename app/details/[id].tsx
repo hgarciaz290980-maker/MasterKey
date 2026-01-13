@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { 
     View, Text, StyleSheet, SafeAreaView, ActivityIndicator, 
     TouchableOpacity, Alert, ScrollView, Switch, 
-    useColorScheme, Linking, Modal, Platform, Dimensions // <-- Añadido Dimensions
+    useColorScheme, Linking, Modal, Platform, Dimensions
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +13,6 @@ import * as Notifications from 'expo-notifications';
 import { getCredentialById, updateCredential, deleteCredential, Reminder } from '../../storage/credentials'; 
 import EditCredentialModal from '../components/EditCredentialModal'; 
 
-// Obtenemos dimensiones para cálculos responsivos
 const { height, width } = Dimensions.get('window');
 
 type EditableKeys = 'accountName' | 'alias' | 'username' | 'password' | 'notes' | 'category' | 
@@ -64,7 +63,6 @@ export default function CredentialDetailsScreen() {
         { id: 'entertainment', label: 'Entretenimiento' },
     ];
 
-    // ETIQUETAS ACTUALIZADAS SEGÚN TU SOLICITUD
     const fieldLabels: Record<string, string> = {
         accountName: 'Nombre', alias: 'Alias', username: 'Usuario', password: 'Contraseña',
         notes: 'Notas', petTipo: 'Tipo de Mascota', petNombre: 'Raza',
@@ -72,7 +70,7 @@ export default function CredentialDetailsScreen() {
         petVeterinario: 'Nombre del Veterinario', petVeterinarioTelefono: 'Teléfono del Veterinario',
         autoMarca: 'Marca', autoModelo: 'Modelo', autoAnio: 'Año', autoPlacas: 'Placas',
         autoAseguradoraNombre: 'Aseguradora', autoPoliza: 'Póliza', autoVencimientoPoliza: 'Vencimiento',
-        autoAseguradoraTelefono: 'Teléfono de Siniestros', autoLlantaAncho: 'Ancho de Llanta',
+        autoAseguradoraTelefono: 'Teléfono de Siniestros', autoLlantaAncho: 'Llantas (Especificación)',
         autoLlantaPerfil: 'Perfil de Llanta', autoLlantaRin: 'Rin', autoNoCircula: 'Hoy No Circula',
         autoDiaNoCircula: 'Día de Restricción', 
         autoAceiteFecha: 'Último cambio de aceite',
@@ -206,10 +204,9 @@ export default function CredentialDetailsScreen() {
         <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
             <Stack.Screen options={{ title: "Detalles del Registro" }} />
             <ScrollView 
-                contentContainerStyle={[styles.scrollContent, { paddingBottom: height * 0.15 }]} // Ajuste responsivo inferior
+                contentContainerStyle={[styles.scrollContent, { paddingBottom: height * 0.15 }]} 
                 showsVerticalScrollIndicator={false}
             >
-                {/* --- LÍNEA AGREGADA: ESPACIADOR DE CHOQUE --- */}
                 <View style={{ height: 20 }} />
                 
                 <Text style={[styles.sectionTitle, { color: theme.primary }]}>INFORMACIÓN GENERAL</Text>
@@ -264,9 +261,9 @@ export default function CredentialDetailsScreen() {
                         <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>Especificación de las llantas</Text>
                         <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
                             <Text style={[styles.infoValue, { color: theme.text, flex: 1 }]}>
-                                {credential.autoLlantaAncho || '---'} / {credential.autoLlantaPerfil || '---'} {credential.autoLlantaRin || '---'}
+                                {credential.autoLlantaAncho || '205/60R15'}
                             </Text>
-                            <TouchableOpacity onPress={() => { setEditingField('autoLlantaAncho'); setEditingLabel('Ancho Llanta'); setIsModalVisible(true); }} style={styles.innerEditBtn}>
+                            <TouchableOpacity onPress={() => { setEditingField('autoLlantaAncho'); setEditingLabel('Llantas (Especificación)'); setIsModalVisible(true); }} style={styles.innerEditBtn}>
                                 <Ionicons name="construct-outline" size={18} color={theme.primary} />
                             </TouchableOpacity>
                         </View>
@@ -276,7 +273,6 @@ export default function CredentialDetailsScreen() {
                             <View style={{ width: '48%' }}>{renderRow('Día', 'autoDiaNoCircula', credential.autoDiaNoCircula)}</View>
                         </View>
 
-                        {/* NOMBRES ACTUALIZADOS AQUÍ TAMBIÉN */}
                         {renderRow('Último cambio de aceite', 'autoAceiteFecha', credential.autoAceiteFecha)}
                         {renderRow('Último cambio de frenos', 'autoFrenosFecha', credential.autoFrenosFecha)}
                         {renderRow('Último servicio de afinación', 'autoAfinacionFecha', credential.autoAfinacionFecha)}
@@ -387,6 +383,10 @@ export default function CredentialDetailsScreen() {
                 onClose={() => setIsModalVisible(false)} 
                 onSave={handleSaveModal} 
                 fieldLabel={editingLabel} 
+                placeholder={
+                    editingField === 'autoVencimientoPoliza' ? "DD/MM/AAAA" : 
+                    editingField === 'autoLlantaAncho' ? "205/60R15" : ""
+                }
                 initialValue={
                     editingReminderId 
                     ? credential.reminders.find((r: any) => r.id === editingReminderId)?.[editingReminderField] || ''
@@ -404,7 +404,6 @@ export default function CredentialDetailsScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    // Ajuste responsivo para el contenido interno
     scrollContent: { 
         paddingHorizontal: width * 0.05, 
         paddingTop: Platform.OS === 'ios' ? 40 : 35, 

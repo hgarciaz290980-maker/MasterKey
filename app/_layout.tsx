@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router';
-import { useEffect } from 'react';
-import { Platform } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, AppState, AppStateStatus, View, ActivityIndicator, StyleSheet } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { saveNotification } from '../storage/notificationsStorage';
 
 // Configuramos el comportamiento de las notificaciones
@@ -15,10 +16,52 @@ Notifications.setNotificationHandler({
 });
 
 export default function TabLayout() {
+  const [isLocked, setIsLocked] = useState(false);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+
+  // --- LÓGICA DE SEGURIDAD GLOBAL ---
+  useEffect(() => {
+    const handleAppStateChange = async (nextAppState: AppStateStatus) => {
+      // Si la app se va a segundo plano o multitarea, la bloqueamos
+      if (nextAppState === 'inactive' || nextAppState === 'background') {
+        setIsLocked(true);
+      }
+
+      // Si regresa a primer plano y estaba bloqueada
+      if (nextAppState === 'active' && isLocked && !isAuthenticating) {
+        authenticateUser();
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [isLocked, isAuthenticating]);
+
+  const authenticateUser = async () => {
+    setIsAuthenticating(true);
+    try {
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Bunker-K: Confirmar Identidad',
+        fallbackLabel: 'Usar código de seguridad',
+      });
+
+      if (result.success) {
+        setIsLocked(false);
+      } else {
+        // Si falla o cancela, mantenemos bloqueado para forzar re-intento manual
+        setIsLocked(true);
+      }
+    } catch (error) {
+      console.error("Error de autenticación:", error);
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
+
+  // --- LÓGICA DE NOTIFICACIONES ---
   useEffect(() => {
     async function setupNotifications() {
       if (Platform.OS === 'web') return;
-
       try {
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
@@ -26,7 +69,6 @@ export default function TabLayout() {
           const { status } = await Notifications.requestPermissionsAsync();
           finalStatus = status;
         }
-
         if (finalStatus !== 'granted') return;
 
         if (Platform.OS === 'android') {
@@ -46,17 +88,14 @@ export default function TabLayout() {
     
     setupNotifications();
 
-    // ESCUCHADOR: Se activa cuando llega una notificación
-    const subscription = Notifications.addNotificationReceivedListener(async (notification) => {
+    const notificationSubscription = Notifications.addNotificationReceivedListener(async (notification) => {
       const { title, body } = notification.request.content;
-      // Forzamos a que data se trate como un objeto con nuestras propiedades
       const data = notification.request.content.data as { 
         description?: string; 
         type?: 'pet' | 'general'; 
         url?: string 
       };
       
-      // Guardamos en la campanita en el momento exacto que llega la notificación
       await saveNotification({
         id: notification.request.identifier + "_" + Date.now(),
         title: title || 'Recordatorio Bunker-K',
@@ -68,8 +107,23 @@ export default function TabLayout() {
       });
     });
 
-    return () => subscription.remove();
+    return () => notificationSubscription.remove();
   }, []);
+
+  // --- VISTA DE BLOQUEO ---
+  // Si la app está bloqueada, mostramos una pantalla de carga/seguridad
+  if (isLocked) {
+    return (
+      <View style={styles.lockContainer}>
+        <ActivityIndicator size="large" color="#007BFF" />
+        <View style={{ marginTop: 20 }}>
+          <View style={styles.retryBtn}>
+            <ActivityIndicator size="small" color="#007BFF" />
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
@@ -77,3 +131,16 @@ export default function TabLayout() {
     </Stack>
   );
 }
+
+const styles = StyleSheet.create({
+  lockContainer: {
+    flex: 1,
+    backgroundColor: '#121212', // O el color de fondo de tu tema
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  retryBtn: {
+    padding: 15,
+    borderRadius: 10,
+  }
+});

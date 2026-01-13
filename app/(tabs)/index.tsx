@@ -2,7 +2,7 @@ import * as AuthSession from 'expo-auth-session';
 import React, { useState, useEffect, useCallback } from 'react'; 
 import { 
     View, Text, StyleSheet, TouchableOpacity, SafeAreaView, 
-    ScrollView, useColorScheme, Platform, Modal, Dimensions // <-- Importamos Dimensions
+    ScrollView, useColorScheme, Platform, Modal
 } from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router'; 
 import { Ionicons } from '@expo/vector-icons';
@@ -14,9 +14,6 @@ import * as Notifications from 'expo-notifications';
 
 import BackupManager from '../components/BackupManager'; 
 import { getNotifications, saveNotification } from '../../storage/notificationsStorage';
-
-// Obtenemos las dimensiones una sola vez
-const { height, width } = Dimensions.get('window');
 
 WebBrowser.maybeCompleteAuthSession(); 
 
@@ -209,11 +206,7 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
     safeArea: { flex: 1 },
-    container: { 
-        paddingHorizontal: width * 0.05, // 5% del ancho de pantalla
-        paddingBottom: 20, 
-        paddingTop: Platform.OS === 'ios' ? 20 : 55 
-    },
+    container: { paddingHorizontal: 20, paddingBottom: 10, paddingTop: 55 },
     brandContainer: { marginBottom: 2 },
     brandText: { fontSize: 32, fontWeight: '900', letterSpacing: -1.5 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
@@ -221,33 +214,18 @@ const styles = StyleSheet.create({
     notificationBtn: { position: 'relative', padding: 5 },
     badge: { position: 'absolute', right: 0, top: 0, minWidth: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#FFF' },
     badgeText: { color: '#FFF', fontSize: 8, fontWeight: 'bold' },
-    mainCard: { flexDirection: 'row', alignItems: 'center', padding: height * 0.015, borderRadius: 12, marginBottom: 10, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 },
+    mainCard: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, marginBottom: 10, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 },
     cardTitle: { fontSize: 16, fontWeight: '600', marginLeft: 10 },
     sectionTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 },
     toolsRow: { marginBottom: 5 },
     googleCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 12, borderStyle: 'dashed', borderWidth: 1 },
     googleText: { fontWeight: '600', marginLeft: 10 },
-    // AJUSTE RESPONSIVO PARA EL FAB
-    fab: { 
-        position: 'absolute', 
-        bottom: height * 0.28, // Se ajusta al 28% de la altura de la pantalla
-        right: width * 0.05, // 5% de separación del borde derecho
-        width: 56, 
-        height: 56, 
-        borderRadius: 28, 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        elevation: 5, 
-        shadowColor: "#000", 
-        shadowOffset: { width: 0, height: 3 }, 
-        shadowOpacity: 0.2, 
-        shadowRadius: 4 
-    },
+    fab: { position: 'absolute', bottom: 250, right: 20, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 4 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     authButton: { marginTop: 20, padding: 15, borderRadius: 10 },
     authButtonText: { color: '#FFF', fontWeight: 'bold' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
-    modalContent: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, borderWidth: 1, minHeight: height * 0.5 }, // 50% de la pantalla
+    modalContent: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, borderWidth: 1, minHeight: 400 },
     modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     gridItem: { width: '30%', alignItems: 'center', marginBottom: 20 },

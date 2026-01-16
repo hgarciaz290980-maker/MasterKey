@@ -2,7 +2,7 @@ import * as AuthSession from 'expo-auth-session';
 import React, { useState, useEffect, useCallback } from 'react'; 
 import { 
     View, Text, StyleSheet, TouchableOpacity, SafeAreaView, 
-    ScrollView, useColorScheme, Platform, Modal
+    ScrollView, useColorScheme, Platform, Modal, Alert
 } from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router'; 
 import { Ionicons } from '@expo/vector-icons';
@@ -11,6 +11,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser'; 
 import * as Google from 'expo-auth-session/providers/google';
 import * as Notifications from 'expo-notifications'; 
+// --- NUEVO IMPORT ---
+import * as Linking from 'expo-linking';
 
 import BackupManager from '../components/BackupManager'; 
 import { getNotifications, saveNotification } from '../../storage/notificationsStorage';
@@ -25,9 +27,9 @@ export default function DashboardScreen() {
     const isDark = colorScheme === 'dark';
     
     const theme = {
-        background: isDark ? '#121212' : '#F8F9FA',
+        background: isDark ? '#090912ff' : '#F8F9FA',
         text: isDark ? '#F8F9FA' : '#212529',
-        card: isDark ? '#1E1E1E' : '#FFFFFF',
+        card: isDark ? '#1b1e2cff' : '#FFFFFF',
         subText: isDark ? '#ADB5BD' : '#6C757D',
         border: isDark ? '#333333' : '#E9ECEF',
         primary: '#007BFF',
@@ -38,6 +40,7 @@ export default function DashboardScreen() {
     const [userName, setUserName] = useState('Usuario');
     const [showTypeSelector, setShowTypeSelector] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [isGoogleLinked, setIsGoogleLinked] = useState(false);
 
     const categories = [
         { id: 'fav', label: 'Recurrentes', icon: 'star', color: '#FFC107' },
@@ -64,7 +67,13 @@ export default function DashboardScreen() {
             }
         }
         configureNotifications();
+        checkGoogleToken();
     }, []);
+
+    const checkGoogleToken = async () => {
+        const token = await AsyncStorage.getItem('google_access_token');
+        setIsGoogleLinked(!!token);
+    };
 
     const updateNotificationCount = async () => {
         try {
@@ -80,12 +89,38 @@ export default function DashboardScreen() {
         }, [isAuthenticated])
     );
 
+   // --- CONFIGURACIÓN DE GOOGLE ACTUALIZADA ---
    const [request, response, promptAsync] = Google.useAuthRequest({
         androidClientId: "619201497268-vcop7li7m3jdvib2je642d54tmpktkad.apps.googleusercontent.com",
         iosClientId: "619201497268-tk48sp2maotrqmsef0iidt8n822k0gqm.apps.googleusercontent.com",
         webClientId: "619201497268-64s3e67clg56f49t0q4hhr8bu3aeithu.apps.googleusercontent.com",
         scopes: ['https://www.googleapis.com/auth/drive.file'],
-    }, { native: "com.mkpro01.masterkey://google-auth" });
+    }, { 
+        // Cambiamos el texto manual por la función de Linking
+        native: Linking.createURL('google-auth') 
+    });
+
+    // Monitoreo de la URI generada (míralo en tu terminal)
+    useEffect(() => {
+        console.log("Redirect URI generada:", Linking.createURL('google-auth'));
+    }, []);
+
+    useEffect(() => {
+        if (response?.type === 'success') {
+            const { access_token } = response.params;
+            saveGoogleToken(access_token);
+        }
+    }, [response]);
+
+    const saveGoogleToken = async (token: string) => {
+        try {
+            await AsyncStorage.setItem('google_access_token', token);
+            setIsGoogleLinked(true);
+            Alert.alert("Éxito", "Bunker-K está vinculado con Google Drive.");
+        } catch (e) {
+            Alert.alert("Error", "No se pudo guardar la vinculación.");
+        }
+    };
 
     useEffect(() => {
         const checkSetup = async () => {
@@ -125,7 +160,7 @@ export default function DashboardScreen() {
             <ScrollView contentContainerStyle={styles.container} bounces={false} showsVerticalScrollIndicator={false}>
                 
                 <View style={styles.brandContainer}>
-                    <Text style={[styles.brandText, { color: theme.primary }]}>Bunker-K</Text>
+                    <Text style={[styles.brandText, { color: '#F8F9FA' }]}>Bunker-K</Text>
                 </View>
 
                 <View style={styles.headerRow}>
@@ -163,12 +198,21 @@ export default function DashboardScreen() {
                     </View>
 
                     <TouchableOpacity 
-                        style={[styles.googleCard, { borderColor: theme.primary, marginTop: 10 }]} 
+                        style={[
+                            styles.googleCard, 
+                            { borderColor: isGoogleLinked ? '#28A745' : theme.primary, marginTop: 10 }
+                        ]} 
                         onPress={() => promptAsync()}
                         disabled={!request}
                     >
-                        <Ionicons name="cloud-upload" size={18} color={theme.primary} />
-                        <Text style={[styles.googleText, { color: theme.text, fontSize: 14 }]}> Vincular Google Drive</Text>
+                        <Ionicons 
+                            name={isGoogleLinked ? "cloud-done" : "cloud-upload"} 
+                            size={18} 
+                            color={isGoogleLinked ? '#28A745' : theme.primary} 
+                        />
+                        <Text style={[styles.googleText, { color: theme.text, fontSize: 14 }]}> 
+                            {isGoogleLinked ? " Drive Vinculado" : " Vincular Google Drive"}
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>

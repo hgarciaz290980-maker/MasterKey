@@ -12,8 +12,8 @@ export const Colors = {
     searchBar: '#FFFFFF',
   },
   dark: {
-    background: '#121212', // Negro mate
-    card: '#1E1E1E',       // Gris muy oscuro para las tarjetas
+    background: '#090912ff', // Negro mate
+    card: '#1b1e2cff',       // Gris muy oscuro para las tarjetas
     text: '#F8F9FA',       // Blanco suave para que no lastime la vista
     subText: '#ADB5BD',    // Gris claro para usuarios/detalles
     border: '#333333',     // Bordes sutiles

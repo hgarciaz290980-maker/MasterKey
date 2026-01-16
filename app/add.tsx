@@ -5,7 +5,13 @@ import {
 } from 'react-native';
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { createCredential, Credential } from '../storage/credentials';
+
+// --- AJUSTE DE RUTA DE SERVICIO ---
+import { createCredential, Credential, getAllCredentials } from '../storage/credentials';
+// @ts-ignore
+import { uploadToGoogleDrive } from '@/components/googleDriveService';
+// ------------------------------------
+
 import SpecialCategoryForm from './components/SpecialCategoryForm';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -42,41 +48,26 @@ export default function AddCredentialScreen() {
         { id: 'entertainment', label: 'Entretenimiento' },
     ];
 
-    // --- LÓGICA DE FECHA AUTOMÁTICA ---
     const formatAutoDate = (text: string) => {
-        // Limpiar todo lo que no sea número
         const cleaned = text.replace(/\D/g, '');
         let formatted = cleaned;
-        
-        if (cleaned.length > 2) {
-            formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
-        }
-        if (cleaned.length > 4) {
-            formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
-        }
-        return formatted.slice(0, 10); // Limitar a DD/MM/AAAA
+        if (cleaned.length > 2) formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
+        if (cleaned.length > 4) formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
+        return formatted.slice(0, 10);
     };
 
     const handleSpecialChange = (field: string, value: string) => {
         let finalValue = value;
-        // Aplicar máscara si el campo es de fecha
-        if (field.toLowerCase().includes('fecha')) {
-            finalValue = formatAutoDate(value);
-        }
+        if (field.toLowerCase().includes('fecha')) finalValue = formatAutoDate(value);
         setSpecialData((prev: any) => ({ ...prev, [field]: finalValue }));
     };
-    // ---------------------------------
 
-    useEffect(() => {
-        checkPermissions();
-    }, []);
+    useEffect(() => { checkPermissions(); }, []);
 
     const checkPermissions = async () => {
         if (Device.isDevice) {
             const { status: existingStatus } = await Notifications.getPermissionsAsync();
-            if (existingStatus !== 'granted') {
-                await Notifications.requestPermissionsAsync();
-            }
+            if (existingStatus !== 'granted') await Notifications.requestPermissionsAsync();
         }
     };
 
@@ -124,7 +115,17 @@ export default function AddCredentialScreen() {
                 notes,
                 ...specialData 
             });
+
             await scheduleCategoryNotification(accountName, specialData);
+
+            // --- TRIGGER DE DRIVE ---
+            const allData = await getAllCredentials();
+            const jsonData = JSON.stringify(allData);
+            
+            uploadToGoogleDrive(jsonData).then((success: boolean) => {
+                if (success) console.log("Copia de seguridad automática actualizada en Drive");
+            });
+
             router.back(); 
         } catch (error) { Alert.alert("Error", "No se pudo guardar"); }
     };
@@ -171,7 +172,6 @@ export default function AddCredentialScreen() {
                     <Ionicons name="chevron-down" size={20} color="#007BFF" />
                 </TouchableOpacity>
 
-                {/* Pasamos nuestra nueva función handleSpecialChange que tiene la máscara de fecha */}
                 <SpecialCategoryForm category={category} formData={specialData} onChange={handleSpecialChange} isDark={true} />
 
                 {category !== 'pet' && category !== 'mobility' && (
@@ -207,7 +207,7 @@ export default function AddCredentialScreen() {
                 <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowPicker(false)}>
                     <View style={styles.modalContent}>
                         <Text style={styles.modalTitle}>Seleccionar Categoría</Text>
-                        {categories.map((item: any) => (
+                        {categories.map((item) => (
                             <TouchableOpacity key={item.id} style={styles.modalItem} onPress={() => { setCategory(item.id as any); setShowPicker(false); }}>
                                 <Text style={styles.modalItemText}>{item.label}</Text>
                             </TouchableOpacity>

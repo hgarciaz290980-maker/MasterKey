@@ -28,9 +28,9 @@ export default function ListScreen() {
     
     const isDark = colorScheme === 'dark';
     const theme = {
-        background: isDark ? '#121212' : '#F8F9FA',
+        background: isDark ? '#090912ff' : '#F8F9FA',
         text: isDark ? '#F8F9FA' : '#212529',
-        card: isDark ? '#1E1E1E' : '#FFFFFF',
+        card: isDark ? '#1b1e2cff' : '#FFFFFF',
         subText: isDark ? '#ADB5BD' : '#6C757D',
         border: isDark ? '#333333' : '#E9ECEF',
         primary: '#007BFF',

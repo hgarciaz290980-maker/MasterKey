@@ -1,24 +1,27 @@
-import * as AuthSession from 'expo-auth-session';
 import React, { useState, useEffect, useCallback } from 'react'; 
 import { 
     View, Text, StyleSheet, TouchableOpacity, SafeAreaView, 
-    ScrollView, useColorScheme, Platform, Modal, Dimensions // <-- Importamos Dimensions
+    ScrollView, useColorScheme, Platform, Modal, Alert
 } from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router'; 
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as WebBrowser from 'expo-web-browser'; 
-import * as Google from 'expo-auth-session/providers/google';
 import * as Notifications from 'expo-notifications'; 
+import * as Linking from 'expo-linking';
+
+// --- NUEVA LIBRERÍA NATIVA ---
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 import BackupManager from '../components/BackupManager'; 
 import { getNotifications, saveNotification } from '../../storage/notificationsStorage';
 
-// Obtenemos las dimensiones una sola vez
-const { height, width } = Dimensions.get('window');
-
-WebBrowser.maybeCompleteAuthSession(); 
+// --- CONFIGURACIÓN DE GOOGLE ---
+GoogleSignin.configure({
+  webClientId: '619201497268-rvpm6438n7773l4ir71quoctnemc23st.apps.googleusercontent.com',
+  offlineAccess: true,
+  scopes: ['https://www.googleapis.com/auth/drive.file'], 
+});
 
 let isAppUnlocked = false;
 
@@ -28,9 +31,9 @@ export default function DashboardScreen() {
     const isDark = colorScheme === 'dark';
     
     const theme = {
-        background: isDark ? '#121212' : '#F8F9FA',
+        background: isDark ? '#090912ff' : '#F8F9FA',
         text: isDark ? '#F8F9FA' : '#212529',
-        card: isDark ? '#1E1E1E' : '#FFFFFF',
+        card: isDark ? '#1b1e2cff' : '#FFFFFF',
         subText: isDark ? '#ADB5BD' : '#6C757D',
         border: isDark ? '#333333' : '#E9ECEF',
         primary: '#007BFF',
@@ -41,6 +44,7 @@ export default function DashboardScreen() {
     const [userName, setUserName] = useState('Usuario');
     const [showTypeSelector, setShowTypeSelector] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
+    const [isGoogleLinked, setIsGoogleLinked] = useState(false);
 
     const categories = [
         { id: 'fav', label: 'Recurrentes', icon: 'star', color: '#FFC107' },
@@ -67,7 +71,31 @@ export default function DashboardScreen() {
             }
         }
         configureNotifications();
+        checkGoogleUser();
     }, []);
+
+    const checkGoogleUser = async () => {
+        const isSignedIn = GoogleSignin.hasPreviousSignIn();
+        setIsGoogleLinked(isSignedIn);
+    };
+
+    const handleGoogleSignIn = async () => {
+        try {
+            await GoogleSignin.hasPlayServices();
+            const userInfo = await GoogleSignin.signIn();
+            // En la versión nativa, los tokens se manejan internamente, 
+            // pero podemos guardar que ya está logueado.
+            setIsGoogleLinked(true);
+            Alert.alert("Éxito", "Bunker-K está vinculado con Google Drive nativamente.");
+        } catch (error: any) {
+            if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+                console.log("Usuario canceló");
+            } else {
+                Alert.alert("Error de Google", error.message);
+                console.log("Detalle error:", error);
+            }
+        }
+    };
 
     const updateNotificationCount = async () => {
         try {
@@ -82,13 +110,6 @@ export default function DashboardScreen() {
             if (isAuthenticated) updateNotificationCount();
         }, [isAuthenticated])
     );
-
-   const [request, response, promptAsync] = Google.useAuthRequest({
-        androidClientId: "619201497268-vcop7li7m3jdvib2je642d54tmpktkad.apps.googleusercontent.com",
-        iosClientId: "619201497268-tk48sp2maotrqmsef0iidt8n822k0gqm.apps.googleusercontent.com",
-        webClientId: "619201497268-64s3e67clg56f49t0q4hhr8bu3aeithu.apps.googleusercontent.com",
-        scopes: ['https://www.googleapis.com/auth/drive.file'],
-    }, { native: "com.mkpro01.masterkey://google-auth" });
 
     useEffect(() => {
         const checkSetup = async () => {
@@ -128,7 +149,7 @@ export default function DashboardScreen() {
             <ScrollView contentContainerStyle={styles.container} bounces={false} showsVerticalScrollIndicator={false}>
                 
                 <View style={styles.brandContainer}>
-                    <Text style={[styles.brandText, { color: theme.primary }]}>Bunker-K</Text>
+                    <Text style={[styles.brandText, { color: '#F8F9FA' }]}>Bunker-K</Text>
                 </View>
 
                 <View style={styles.headerRow}>
@@ -166,12 +187,20 @@ export default function DashboardScreen() {
                     </View>
 
                     <TouchableOpacity 
-                        style={[styles.googleCard, { borderColor: theme.primary, marginTop: 10 }]} 
-                        onPress={() => promptAsync()}
-                        disabled={!request}
+                        style={[
+                            styles.googleCard, 
+                            { borderColor: isGoogleLinked ? '#28A745' : theme.primary, marginTop: 10 }
+                        ]} 
+                        onPress={handleGoogleSignIn}
                     >
-                        <Ionicons name="cloud-upload" size={18} color={theme.primary} />
-                        <Text style={[styles.googleText, { color: theme.text, fontSize: 14 }]}> Vincular Google Drive</Text>
+                        <Ionicons 
+                            name={isGoogleLinked ? "cloud-done" : "cloud-upload"} 
+                            size={18} 
+                            color={isGoogleLinked ? '#28A745' : theme.primary} 
+                        />
+                        <Text style={[styles.googleText, { color: theme.text, fontSize: 14 }]}> 
+                            {isGoogleLinked ? " Drive Vinculado" : " Vincular Google Drive"}
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </ScrollView>
@@ -209,11 +238,7 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
     safeArea: { flex: 1 },
-    container: { 
-        paddingHorizontal: width * 0.05, // 5% del ancho de pantalla
-        paddingBottom: 20, 
-        paddingTop: Platform.OS === 'ios' ? 20 : 55 
-    },
+    container: { paddingHorizontal: 20, paddingBottom: 10, paddingTop: 55 },
     brandContainer: { marginBottom: 2 },
     brandText: { fontSize: 32, fontWeight: '900', letterSpacing: -1.5 },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
@@ -221,33 +246,18 @@ const styles = StyleSheet.create({
     notificationBtn: { position: 'relative', padding: 5 },
     badge: { position: 'absolute', right: 0, top: 0, minWidth: 16, height: 16, borderRadius: 8, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#FFF' },
     badgeText: { color: '#FFF', fontSize: 8, fontWeight: 'bold' },
-    mainCard: { flexDirection: 'row', alignItems: 'center', padding: height * 0.015, borderRadius: 12, marginBottom: 10, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 },
+    mainCard: { flexDirection: 'row', alignItems: 'center', padding: 12, borderRadius: 12, marginBottom: 10, elevation: 1, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 },
     cardTitle: { fontSize: 16, fontWeight: '600', marginLeft: 10 },
     sectionTitle: { fontSize: 12, fontWeight: 'bold', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 1 },
     toolsRow: { marginBottom: 5 },
     googleCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 12, borderRadius: 12, borderStyle: 'dashed', borderWidth: 1 },
     googleText: { fontWeight: '600', marginLeft: 10 },
-    // AJUSTE RESPONSIVO PARA EL FAB
-    fab: { 
-        position: 'absolute', 
-        bottom: height * 0.28, // Se ajusta al 28% de la altura de la pantalla
-        right: width * 0.05, // 5% de separación del borde derecho
-        width: 56, 
-        height: 56, 
-        borderRadius: 28, 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        elevation: 5, 
-        shadowColor: "#000", 
-        shadowOffset: { width: 0, height: 3 }, 
-        shadowOpacity: 0.2, 
-        shadowRadius: 4 
-    },
+    fab: { position: 'absolute', bottom: 250, right: 20, width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 5, shadowColor: "#000", shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 4 },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     authButton: { marginTop: 20, padding: 15, borderRadius: 10 },
     authButtonText: { color: '#FFF', fontWeight: 'bold' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
-    modalContent: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, borderWidth: 1, minHeight: height * 0.5 }, // 50% de la pantalla
+    modalContent: { borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, borderWidth: 1, minHeight: 400 },
     modalTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     gridItem: { width: '30%', alignItems: 'center', marginBottom: 20 },

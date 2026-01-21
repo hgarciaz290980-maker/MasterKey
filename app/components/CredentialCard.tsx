@@ -15,7 +15,7 @@ export default function CredentialCard({ credential, onPress }: CredentialCardPr
     // Diccionario de colores integrado para la tarjeta
     const isDark = colorScheme === 'dark';
     const theme = {
-        card: isDark ? '#1E1E1E' : '#FFFFFF',
+        card: isDark ? '#1b1e2cff' : '#FFFFFF',
         text: isDark ? '#F8F9FA' : '#212529',
         subText: isDark ? '#ADB5BD' : '#6C757D',
         border: isDark ? '#333333' : '#E9ECEF',

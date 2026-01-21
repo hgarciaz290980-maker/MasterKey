@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "619201497268",
+    "project_id": "bunker-k",
+    "storage_bucket": "bunker-k.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:619201497268:android:8c96991e6583e19eb4afe1",
+        "android_client_info": {
+          "package_name": "com.mkpro01.masterkey"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "619201497268-rvpm6438n7773l4ir71quoctnemc23st.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyALjxPqucdBwIlc9yz2d8zuud-zUYbvKXQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "619201497268-rvpm6438n7773l4ir71quoctnemc23st.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "619201497268-tk48sp2maotrqmsef0iidt8n822k0gqm.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "host.exp.exponent"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

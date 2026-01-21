@@ -127,32 +127,62 @@ export default function CredentialDetailsScreen() {
         setIsModalVisible(false);
     };
 
-    const scheduleReminders = async () => {
+   const scheduleReminders = async () => {
         if (!credential.hasReminder || !credential.reminders) return;
-        await Notifications.cancelAllScheduledNotificationsAsync();
+
+        // Limpiamos las anteriores de esta cuenta para no duplicar
+        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+        for (const notification of scheduled) {
+            if (notification.identifier.startsWith(`bunker-${id}-`)) {
+                await Notifications.cancelScheduledNotificationAsync(notification.identifier);
+            }
+        }
+
         for (const rem of credential.reminders) {
             if (rem.date && rem.time) {
                 try {
+                    // 1. Desmenuzamos la fecha (DD/MM/YYYY)
                     const [day, month, year] = rem.date.split('/').map(Number);
+                    
+                    // 2. Desmenuzamos la hora (HH:MM AM/PM)
                     const [timeStr, period] = rem.time.split(' ');
                     let [hours, minutes] = timeStr.split(':').map(Number);
+                    
+                    // Conversión estricta a formato 24hs
                     if (period === 'PM' && hours < 12) hours += 12;
                     if (period === 'AM' && hours === 12) hours = 0;
+                    
+                    // 3. Creamos el objeto fecha con segundos en 0
                     const scheduledDate = new Date(year, month - 1, day, hours, minutes, 0);
-                    const secondsToWait = Math.round((scheduledDate.getTime() - Date.now()) / 1000);
-                    if (secondsToWait > 0) {
+
+                    // LOG DE DEPURACIÓN: Verás esto en tu terminal de VS Code
+                    console.log(`Intentando agendar para: ${scheduledDate.toString()}`);
+                    console.log(`Hora actual: ${new Date().toString()}`);
+
+                    if (scheduledDate.getTime() > Date.now()) {
                         await Notifications.scheduleNotificationAsync({
-                            content: {
-                                title: `🚨 Recordatorio Bunker-K`,
-                                body: `${rem.note || 'Tarea pendiente'} (${credential.accountName})`,
-                                priority: Notifications.AndroidNotificationPriority.MAX,
-                                sound: true,
-                                data: { url: `/details/${id}`, type: credential.category === 'pet' ? 'pet' : 'general', description: rem.note || 'Revisar detalles' },
-                            },
-                            trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: secondsToWait } as any,
-                        });
+    identifier: `bunker-${id}-${rem.id}`, 
+    content: {
+        title: `🚨 Bunker-K: ${credential.accountName}`,
+        body: rem.note || 'Tarea pendiente',
+        priority: Notifications.AndroidNotificationPriority.MAX,
+        sound: 'default',
+    },
+    trigger: { 
+        // CAMBIO AQUÍ: Formato estricto para Android Moderno
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: scheduledDate,
+        channelId: 'default', // Esto vincula la alarma al canal de alta prioridad
+        precise: true, // <--- Agrega esta línea si la librería lo permite
+    } as any,
+});
+                        console.log(`✅ ÉXITO: Agendada ${rem.id}`);
+                    } else {
+                        console.log(`⚠️ ERROR: La fecha ya pasó, no se agendó.`);
                     }
-                } catch (err) { console.error("Error al procesar recordatorio:", err); }
+                } catch (err) { 
+                    console.error("❌ Error en la lógica de fecha:", err); 
+                }
             }
         }
     };

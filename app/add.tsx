@@ -87,12 +87,18 @@ export default function AddCredentialScreen() {
                 
                 if (triggerDate.getTime() > Date.now()) {
                     await Notifications.scheduleNotificationAsync({
+                        // Usamos el nombre y la fecha como ID único temporal para el alta
+                        identifier: `new-item-${name}-${Date.now()}`,
                         content: {
                             title: `🚨 Bunker-K: ${name}`,
                             body: `Recordatorio: ${data.petNotas || data.autoNotas || 'Revisar detalles.'}`,
                             data: { type: category },
+                            priority: Notifications.AndroidNotificationPriority.MAX,
                         },
-                        trigger: { date: triggerDate } as any,
+                        trigger: { 
+                            date: triggerDate,
+                            channelId: 'default'
+                        } as any,
                     });
                 }
             }

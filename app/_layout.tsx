@@ -11,7 +11,9 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
-    priority: Notifications.AndroidNotificationPriority.MAX,
+    // Agregamos estas para mayor compatibilidad
+    shouldShowBanner: true, 
+    shouldShowList: true,
   } as any),
 });
 

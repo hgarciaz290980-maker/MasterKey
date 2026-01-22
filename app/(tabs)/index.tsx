@@ -9,14 +9,13 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Circle, G } from 'react-native-svg';
 
-// Obtenemos dimensiones para cálculos responsivos
 const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
 
 const COLORS = {
     deepMidnight: '#040740',
     electricBlue: '#303AF2',
     darkSlate: '#172140',
-    neonGreen: '#0DAC40', // Tu verde de "Fuertes"
+    neonGreen: '#0DAC40', 
     electricPurple: '#9D00FF',
     vibrantRed: '#FF0000',
     textWhite: '#F8F9FA'
@@ -116,7 +115,6 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
             </ScrollView>
 
-            {/* BOTÓN FLOTANTE (FAB) - COLOR VERDE Y POSICIÓN RESPONSIVA */}
             <TouchableOpacity 
                 style={[styles.fab, { backgroundColor: COLORS.neonGreen }]} 
                 onPress={() => setShowTypeSelector(true)}
@@ -138,6 +136,17 @@ export default function DashboardScreen() {
                                 </TouchableOpacity>
                             ))}
                         </View>
+
+                        {/* BOTÓN CANCELAR RECUPERADO */}
+                        <TouchableOpacity 
+                            style={styles.cancelButton} 
+                            onPress={() => setShowTypeSelector(false)}
+                        >
+                            <View style={styles.cancelIconCircle}>
+                                <Ionicons name="close" size={14} color={COLORS.vibrantRed} />
+                            </View>
+                            <Text style={styles.cancelText}>Cancelar</Text>
+                        </TouchableOpacity>
                     </View>
                 </TouchableOpacity>
             </Modal>
@@ -146,10 +155,9 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-    // Ajustamos el paddingBottom para que el contenido no quede oculto tras el FAB
     container: { 
         paddingHorizontal: '5%', 
-        paddingTop: windowHeight * 0.08, // Bajamos un poco más el contenido por el Notch
+        paddingTop: windowHeight * 0.08, 
         paddingBottom: 180
     },
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },
@@ -167,8 +175,6 @@ const styles = StyleSheet.create({
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     catCard: { width: '48%', backgroundColor: COLORS.darkSlate, padding: 15, borderRadius: 18, marginBottom: 15 },
     catLabel: { color: COLORS.textWhite, fontSize: 14, fontWeight: '600', marginTop: 8 },
-    
-    // Botón de Cuentas: Ahora puede quedar debajo del FAB sin problemas
     btnAll: { 
         flexDirection: 'row', 
         backgroundColor: COLORS.electricBlue, 
@@ -177,15 +183,11 @@ const styles = StyleSheet.create({
         marginTop: 10, 
         justifyContent: 'center', 
         alignItems: 'center',
-        zIndex: 1 // Capa base
+        zIndex: 1 
     },
     btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
-    
-    // FAB: Flota sobre todo con una posición fija
     fab: { 
         position: 'absolute', 
-        // Subimos el botón al 10% de la altura de la pantalla 
-        // Esto asegura que libre la barra de navegación en cualquier celular
         bottom: windowHeight * 0.07, 
         right: 25, 
         width: 65, 
@@ -194,19 +196,43 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.neonGreen,
         justifyContent: 'center', 
         alignItems: 'center', 
-        elevation: 12, // Sombra más pronunciada para que se note que flota
+        elevation: 12,
         shadowColor: "#000",
         shadowOpacity: 0.5,
         shadowRadius: 8,
         shadowOffset: { width: 0, height: 6 },
-        zIndex: 999, // Prioridad absoluta sobre el scroll
+        zIndex: 999, 
     },
-    
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: COLORS.darkSlate, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, minHeight: 450 },
     modalTitle: { color: COLORS.textWhite, fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
     modalGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     modalItem: { width: '30%', alignItems: 'center', marginBottom: 20 },
     iconCircle: { width: 55, height: 55, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginBottom: 5 },
-    modalItemLabel: { color: COLORS.textWhite, fontSize: 11, textAlign: 'center' }
+    modalItemLabel: { color: COLORS.textWhite, fontSize: 11, textAlign: 'center' },
+    
+    // ESTILOS DEL BOTÓN CANCELAR
+    cancelButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 30,
+        paddingVertical: 10,
+    },
+    cancelIconCircle: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        borderWidth: 1,
+        borderColor: COLORS.vibrantRed,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 8,
+    },
+    cancelText: {
+        color: COLORS.textWhite,
+        fontSize: 16,
+        fontWeight: '500',
+        opacity: 0.8
+    }
 });

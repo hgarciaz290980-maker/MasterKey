@@ -1,0 +1,161 @@
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Drawer } from 'expo-router/drawer';
+import { DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons'; // Importación corregida
+import { useEffect } from 'react';
+import { Platform, View, Text, StyleSheet } from 'react-native';
+import * as Notifications from 'expo-notifications';
+import { useRouter } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+
+const COLORS = {
+    deepMidnight: '#040740',
+    electricBlue: '#303AF2',
+    darkSlate: '#172140',
+    textWhite: '#F8F9FA'
+};
+
+function CustomDrawerContent(props: any) {
+  const router = useRouter();
+  
+  return (
+    <DrawerContentScrollView {...props} contentContainerStyle={{ flex: 1, backgroundColor: COLORS.deepMidnight }}>
+      <View style={styles.drawerHeader}>
+        {/* Cambio a MaterialIcons para que reconozca 'fingerprint' */}
+        <MaterialIcons name="fingerprint" size={55} color={COLORS.electricBlue} />
+        <Text style={styles.drawerTitle}>Bunker-K</Text>
+        <Text style={styles.drawerSubtitle}>Acceso Biométrico</Text>
+      </View>
+
+      <View style={styles.separator} />
+
+      <DrawerItem
+        label="Inicio"
+        labelStyle={styles.drawerLabel}
+        icon={({ color, size }) => <Ionicons name="home-outline" size={size} color={color} />}
+        onPress={() => router.push('/')}
+        inactiveTintColor={COLORS.textWhite}
+      />
+
+      <View style={styles.separator} />
+
+      <DrawerItem
+        label="Seguridad y Llaves"
+        labelStyle={styles.drawerLabel}
+        icon={({ color, size }) => <Ionicons name="key-outline" size={size} color={color} />}
+        onPress={() => {}}
+        inactiveTintColor={COLORS.textWhite}
+      />
+
+      <View style={styles.separator} />
+
+      <DrawerItem
+        label="Configuración"
+        labelStyle={styles.drawerLabel}
+        icon={({ color, size }) => <Ionicons name="settings-outline" size={size} color={color} />}
+        onPress={() => {}}
+        inactiveTintColor={COLORS.textWhite}
+      />
+
+      <View style={styles.footer}>
+        <Text style={styles.manifestoText}>
+          "Tu propio territorio digital, blindado por ti y para ti."
+        </Text>
+      </View>
+    </DrawerContentScrollView>
+  );
+}
+
+export default function RootLayout() {
+  const router = useRouter();
+
+  useEffect(() => {
+    async function setupNotifications() {
+      if (Platform.OS === 'web') return;
+      try {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        if (finalStatus !== 'granted') return;
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'Bunker-K Alerts',
+            importance: Notifications.AndroidImportance.MAX,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#303AF2',
+          });
+        }
+      } catch (error) {
+        console.log("Error configurando notificaciones:", error);
+      }
+    }
+    setupNotifications();
+  }, []);
+
+  return (
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Drawer
+          drawerContent={(props) => <CustomDrawerContent {...props} />}
+          screenOptions={{
+            drawerPosition: 'right',
+            headerShown: false,
+            drawerStyle: { 
+              backgroundColor: COLORS.deepMidnight, 
+              width: 280 
+            },
+            drawerActiveTintColor: COLORS.electricBlue,
+            drawerInactiveTintColor: COLORS.textWhite,
+          }}
+        >
+          <Drawer.Screen name="index" options={{ drawerLabel: 'Inicio' }} />
+        </Drawer>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  drawerHeader: {
+    paddingTop: 50,
+    paddingBottom: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  drawerTitle: {
+    color: COLORS.textWhite,
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginTop: 10,
+  },
+  drawerSubtitle: {
+    color: COLORS.textWhite,
+    opacity: 0.5,
+    fontSize: 12,
+  },
+  drawerLabel: {
+    fontSize: 15,
+    fontWeight: '400',
+  },
+  separator: {
+    height: 0.5,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    marginHorizontal: 20,
+  },
+  footer: {
+    marginTop: 'auto',
+    padding: 30,
+    borderTopWidth: 0.5,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  manifestoText: {
+    color: COLORS.textWhite,
+    fontSize: 10,
+    textAlign: 'center',
+    opacity: 0.4,
+    fontStyle: 'italic'
+  }
+});

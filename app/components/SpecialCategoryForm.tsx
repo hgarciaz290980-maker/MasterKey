@@ -32,7 +32,7 @@ export default function SpecialCategoryForm({ category, formData, onChange, isDa
 
     const petTypes = [
         { id: 'perro', label: 'Perro', icon: 'paw' },
-        { id: 'gato', label: 'Gato', icon: 'logo-github' },
+       { id: 'gato', label: 'Gato', icon: 'logo-octocat' },
         { id: 'otro', label: 'Otro', icon: 'help-circle' }
     ];
 

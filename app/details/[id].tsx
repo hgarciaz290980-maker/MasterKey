@@ -8,15 +8,21 @@ import { Stack, useLocalSearchParams, useRouter, useFocusEffect } from 'expo-rou
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication'; 
 import * as Clipboard from 'expo-clipboard';
-import * as Notifications from 'expo-notifications'; 
 
 import { getCredentialById, updateCredential, deleteCredential, Reminder } from '../../storage/credentials'; 
 import EditCredentialModal from '../components/EditCredentialModal'; 
 
 const { height, width } = Dimensions.get('window');
 
+// Definimos la estructura de una vacuna para que TS sepa qué es
+interface PetVaccine {
+    id: string;
+    name: string;
+    date: string;
+}
+
 type EditableKeys = 'accountName' | 'alias' | 'username' | 'password' | 'notes' | 'category' | 
-                   'petTipo' | 'petNombre' | 'petSangre' | 'petChip' | 'petVacunas' | 
+                   'petTipo' | 'petNombre' | 'petSangre' | 'petChip' | 'petNacimiento' |
                    'petVeterinario' | 'petVeterinarioTelefono' |
                    'autoMarca' | 'autoModelo' | 'autoAnio' | 'autoPlacas' |
                    'autoAseguradoraNombre' | 'autoPoliza' | 'autoVencimientoPoliza' | 'autoAseguradoraTelefono' |
@@ -46,9 +52,11 @@ export default function CredentialDetailsScreen() {
     const [editingField, setEditingField] = useState<EditableKeys | ''>(''); 
     const [editingLabel, setEditingLabel] = useState('');
     
+    const [editingVaccineId, setEditingVaccineId] = useState<string | null>(null);
+    const [editingVaccineField, setEditingVaccineField] = useState<'name' | 'date' | ''>('');
     const [editingReminderId, setEditingReminderId] = useState<string | null>(null);
     const [editingReminderField, setEditingReminderField] = useState<'note' | 'date' | 'time' | ''>('');
-
+    
     const [isUnlocked, setIsUnlocked] = useState(false); 
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -64,9 +72,9 @@ export default function CredentialDetailsScreen() {
     ];
 
     const fieldLabels: Record<string, string> = {
-        accountName: 'Nombre', alias: 'Alias', username: 'Usuario', password: 'Contraseña',
+        accountName: 'Nombre', username: 'Usuario', password: 'Contraseña',
         notes: 'Notas', petTipo: 'Tipo de Mascota', petNombre: 'Raza',
-        petSangre: 'Sangre', petChip: 'Chip', petVacunas: 'Vacunas / Alergias',
+        petSangre: 'Sangre', petChip: 'Chip', petNacimiento: 'Fecha de Nacimiento',
         petVeterinario: 'Nombre del Veterinario', petVeterinarioTelefono: 'Teléfono del Veterinario',
         autoMarca: 'Marca', autoModelo: 'Modelo', autoAnio: 'Año', autoPlacas: 'Placas',
         autoAseguradoraNombre: 'Aseguradora', autoPoliza: 'Póliza', autoVencimientoPoliza: 'Vencimiento',
@@ -78,10 +86,31 @@ export default function CredentialDetailsScreen() {
         autoAfinacionFecha: 'Último servicio de afinación'
     };
 
+    const calcularEdad = (fechaStr: string) => {
+        if (!fechaStr || !fechaStr.includes('/')) return "---";
+        try {
+            const [dia, mes, anio] = fechaStr.split('/').map(Number);
+            if (!dia || !mes || !anio || anio < 1000) return "---";
+            const hoy = new Date();
+            const cumple = new Date(anio, mes - 1, dia);
+            let años = hoy.getFullYear() - cumple.getFullYear();
+            let meses = hoy.getMonth() - cumple.getMonth();
+            if (hoy.getDate() < cumple.getDate()) meses--;
+            if (meses < 0) { años--; meses += 12; }
+            const textoAños = años === 1 ? "1 año" : `${años} años`;
+            const textoMeses = meses === 1 ? "1 mes" : `${meses} meses`;
+            if (años <= 0) return textoMeses;
+            return `${textoAños}${meses > 0 ? ` ${textoMeses}` : ""}`;
+        } catch (e) { return "---"; }
+    };
+
     const fetchCredential = async () => {
         if (!id) return;
         try {
-            const data = await getCredentialById(id); 
+            const data = await getCredentialById(id) as any; // Usamos 'as any' para evitar el error de la captura
+            if (data && !data.petVacunasList) {
+                data.petVacunasList = []; 
+            }
             setCredential(data || null);
             const result = await LocalAuthentication.authenticateAsync({ promptMessage: 'Acceso Bunker' });
             if (result.success) setIsUnlocked(true); else router.back();
@@ -100,98 +129,48 @@ export default function CredentialDetailsScreen() {
         setHasUnsavedChanges(true);
     };
 
-    const addReminder = () => {
-        const newReminder: Reminder = { id: Date.now().toString(), note: 'Nuevo Recordatorio', date: '', time: '' };
-        const updatedReminders = [...(credential.reminders || []), newReminder];
-        updateField('reminders', updatedReminders);
-    };
-
-    const updateReminderField = (reminderId: string, field: 'note' | 'date' | 'time', value: string) => {
-        const updatedReminders = credential.reminders.map((r: Reminder) => r.id === reminderId ? { ...r, [field]: value } : r);
-        updateField('reminders', updatedReminders);
-    };
-
-    const removeReminder = (reminderId: string) => {
-        const updatedReminders = credential.reminders.filter((r: Reminder) => r.id !== reminderId);
-        updateField('reminders', updatedReminders);
+    const addVaccine = () => {
+        const newVaccine: PetVaccine = { id: Date.now().toString(), name: '', date: '' };
+        const currentList = credential.petVacunasList || [];
+        updateField('petVacunasList', [...currentList, newVaccine]);
     };
 
     const handleSaveModal = (val: string) => {
-        if (editingReminderId && editingReminderField) {
-            updateReminderField(editingReminderId, editingReminderField as any, val);
+        let formattedValue = val;
+        const isDateField = editingField === 'petNacimiento' || 
+                           editingField === 'autoVencimientoPoliza' || 
+                           editingVaccineField === 'date' ||
+                           editingReminderField === 'date';
+
+        if (isDateField && val.length === 8 && !val.includes('/')) {
+            formattedValue = `${val.substring(0, 2)}/${val.substring(2, 4)}/${val.substring(4, 8)}`;
+        }
+
+        if (editingVaccineId && editingVaccineField) {
+            const newList = credential.petVacunasList.map((v: PetVaccine) => 
+                v.id === editingVaccineId ? { ...v, [editingVaccineField]: formattedValue } : v
+            );
+            updateField('petVacunasList', newList);
+            setEditingVaccineId(null);
+            setEditingVaccineField('');
+        } else if (editingReminderId && editingReminderField) {
+            const updatedReminders = credential.reminders.map((r: Reminder) => 
+                r.id === editingReminderId ? { ...r, [editingReminderField]: formattedValue } : r
+            );
+            updateField('reminders', updatedReminders);
             setEditingReminderId(null);
             setEditingReminderField('');
         } else if (editingField) {
-            updateField(editingField, val);
+            updateField(editingField, formattedValue);
         }
         setIsModalVisible(false);
-    };
-
-   const scheduleReminders = async () => {
-        if (!credential.hasReminder || !credential.reminders) return;
-
-        // Limpiamos las anteriores de esta cuenta para no duplicar
-        const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-        for (const notification of scheduled) {
-            if (notification.identifier.startsWith(`bunker-${id}-`)) {
-                await Notifications.cancelScheduledNotificationAsync(notification.identifier);
-            }
-        }
-
-        for (const rem of credential.reminders) {
-            if (rem.date && rem.time) {
-                try {
-                    // 1. Desmenuzamos la fecha (DD/MM/YYYY)
-                    const [day, month, year] = rem.date.split('/').map(Number);
-                    
-                    // 2. Desmenuzamos la hora (HH:MM AM/PM)
-                    const [timeStr, period] = rem.time.split(' ');
-                    let [hours, minutes] = timeStr.split(':').map(Number);
-                    
-                    // Conversión estricta a formato 24hs
-                    if (period === 'PM' && hours < 12) hours += 12;
-                    if (period === 'AM' && hours === 12) hours = 0;
-                    
-                    // 3. Creamos el objeto fecha con segundos en 0
-                    const scheduledDate = new Date(year, month - 1, day, hours, minutes, 0);
-
-                    // LOG DE DEPURACIÓN: Verás esto en tu terminal de VS Code
-                    console.log(`Intentando agendar para: ${scheduledDate.toString()}`);
-                    console.log(`Hora actual: ${new Date().toString()}`);
-
-                    if (scheduledDate.getTime() > Date.now()) {
-                        await Notifications.scheduleNotificationAsync({
-    identifier: `bunker-${id}-${rem.id}`, 
-    content: {
-        title: `🚨 Bunker-K: ${credential.accountName}`,
-        body: rem.note || 'Tarea pendiente',
-        priority: Notifications.AndroidNotificationPriority.MAX,
-        sound: 'default',
-    },
-    trigger: { 
-        // CAMBIO AQUÍ: Formato estricto para Android Moderno
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        date: scheduledDate,
-        channelId: 'default', // Esto vincula la alarma al canal de alta prioridad
-        precise: true, // <--- Agrega esta línea si la librería lo permite
-    } as any,
-});
-                        console.log(`✅ ÉXITO: Agendada ${rem.id}`);
-                    } else {
-                        console.log(`⚠️ ERROR: La fecha ya pasó, no se agendó.`);
-                    }
-                } catch (err) { 
-                    console.error("❌ Error en la lógica de fecha:", err); 
-                }
-            }
-        }
     };
 
     const handleSaveChanges = async () => {
         try {
             await updateCredential(credential);
-            await scheduleReminders();
-            Alert.alert("Éxito", "Bunker actualizado", [{ text: "OK", onPress: () => { setHasUnsavedChanges(false); router.back(); } }]);
+            setHasUnsavedChanges(false);
+            Alert.alert("Éxito", "Bunker actualizado", [{ text: "OK", onPress: () => router.back() }]);
         } catch (error) { Alert.alert("Error", "No se pudieron guardar los cambios"); }
     };
 
@@ -233,19 +212,12 @@ export default function CredentialDetailsScreen() {
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
             <Stack.Screen options={{ title: "Detalles del Registro" }} />
-            <ScrollView 
-                contentContainerStyle={[styles.scrollContent, { paddingBottom: height * 0.15 }]} 
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={{ height: 20 }} />
+            <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: height * 0.15 }]} showsVerticalScrollIndicator={false}>
                 
                 <Text style={[styles.sectionTitle, { color: theme.primary }]}>INFORMACIÓN GENERAL</Text>
                 
                 <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 8 }]}>Categoría</Text>
-                <TouchableOpacity 
-                    style={[styles.pickerTrigger, { backgroundColor: theme.card, borderColor: theme.border }]} 
-                    onPress={() => setShowCategoryPicker(true)}
-                >
+                <TouchableOpacity style={[styles.pickerTrigger, { backgroundColor: theme.card, borderColor: theme.border }]} onPress={() => setShowCategoryPicker(true)}>
                     <Text style={[styles.pickerTriggerText, { color: theme.text }]}>
                         {categories.find(c => c.id === credential.category)?.label || "Seleccionar categoría"}
                     </Text>
@@ -253,7 +225,6 @@ export default function CredentialDetailsScreen() {
                 </TouchableOpacity>
 
                 {renderRow('Nombre', 'accountName', credential.accountName)}
-                {renderRow('Alias', 'alias', credential.alias)}
 
                 {credential.category === 'mobility' && (
                     <>
@@ -267,15 +238,38 @@ export default function CredentialDetailsScreen() {
                             <View style={{ width: '48%' }}>{renderRow('Placas', 'autoPlacas', credential.autoPlacas)}</View>
                         </View>
 
-                        <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>SEGURO</Text>
-                        {renderRow('Aseguradora', 'autoAseguradoraNombre', credential.autoAseguradoraNombre)}
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                            <View style={{ width: '48%' }}>{renderRow('Póliza', 'autoPoliza', credential.autoPoliza)}</View>
-                            <View style={{ width: '48%' }}>{renderRow('Vencimiento', 'autoVencimientoPoliza', credential.autoVencimientoPoliza)}</View>
-                        </View>
+                       {/* --- SECCIÓN DE SEGURO CORREGIDA --- */}
+<Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>SEGURO</Text>
+{renderRow('Aseguradora', 'autoAseguradoraNombre', credential.autoAseguradoraNombre)}
+
+{/* Envolvemos Póliza y Vencimiento en un solo renglón */}
+<View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 }}>
+    <View style={{ width: '48%' }}>
+        <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>Póliza</Text>
+        <TouchableOpacity 
+            onPress={() => { setEditingField('autoPoliza'); setEditingLabel('Póliza'); setIsModalVisible(true); }} 
+            style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border, paddingVertical: 12 }]}
+        >
+            <Text style={[styles.infoValue, { color: theme.text, fontSize: 14 }]} numberOfLines={1}>
+                {credential.autoPoliza || 'No asignada'}
+            </Text>
+        </TouchableOpacity>
+    </View>
+    <View style={{ width: '48%' }}>
+        <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>Vencimiento</Text>
+        <TouchableOpacity 
+            onPress={() => { setEditingField('autoVencimientoPoliza'); setEditingLabel('Vencimiento'); setIsModalVisible(true); }} 
+            style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border, paddingVertical: 12 }]}
+        >
+            <Text style={[styles.infoValue, { color: theme.text, fontSize: 14 }]}>
+                {credential.autoVencimientoPoliza || 'DD/MM/AAAA'}
+            </Text>
+        </TouchableOpacity>
+    </View>
+</View>
                         
                         <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>Teléfono de Siniestros</Text>
-                        <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.callButton, borderLeftWidth: 4 }]}>
+                        <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.callButton, borderLeftWidth: 4, marginBottom: 15 }]}>
                             <Text style={[styles.infoValue, { color: theme.text, flex: 1, fontWeight: 'bold' }]}>{credential.autoAseguradoraTelefono || 'Sin teléfono'}</Text>
                             {credential.autoAseguradoraTelefono && (
                                 <TouchableOpacity onPress={() => Linking.openURL(`tel:${credential.autoAseguradoraTelefono}`)} style={[styles.actionBtn, { backgroundColor: theme.callButton }]}>
@@ -287,22 +281,12 @@ export default function CredentialDetailsScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 30 }]}>MANTENIMIENTO</Text>
-                        <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>Especificación de las llantas</Text>
-                        <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                            <Text style={[styles.infoValue, { color: theme.text, flex: 1 }]}>
-                                {credential.autoLlantaAncho || '205/60R15'}
-                            </Text>
-                            <TouchableOpacity onPress={() => { setEditingField('autoLlantaAncho'); setEditingLabel('Llantas (Especificación)'); setIsModalVisible(true); }} style={styles.innerEditBtn}>
-                                <Ionicons name="construct-outline" size={18} color={theme.primary} />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 15 }}>
+                        <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 15 }]}>MANTENIMIENTO</Text>
+                        {renderRow('Llantas (Especificación)', 'autoLlantaAncho', credential.autoLlantaAncho)}
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                             <View style={{ width: '48%' }}>{renderRow('No Circula', 'autoNoCircula', credential.autoNoCircula)}</View>
                             <View style={{ width: '48%' }}>{renderRow('Día', 'autoDiaNoCircula', credential.autoDiaNoCircula)}</View>
                         </View>
-
                         {renderRow('Último cambio de aceite', 'autoAceiteFecha', credential.autoAceiteFecha)}
                         {renderRow('Último cambio de frenos', 'autoFrenosFecha', credential.autoFrenosFecha)}
                         {renderRow('Último servicio de afinación', 'autoAfinacionFecha', credential.autoAfinacionFecha)}
@@ -311,13 +295,80 @@ export default function CredentialDetailsScreen() {
 
                 {credential.category === 'pet' && (
                     <>
-                        <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>FICHA MÉDICA 🐾</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>TIPO DE MASCOTA 🐾</Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
+                            <TouchableOpacity style={[styles.petTypeCard, { backgroundColor: theme.card, borderColor: credential.petTipo === 'perro' ? theme.primary : theme.border }]} onPress={() => updateField('petTipo', 'perro')}>
+                                <Ionicons name="paw" size={28} color={credential.petTipo === 'perro' ? theme.primary : theme.subText} />
+                                <Text style={[styles.petTypeText, { color: credential.petTipo === 'perro' ? theme.primary : theme.subText }]}>Perro</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.petTypeCard, { backgroundColor: theme.card, borderColor: credential.petTipo === 'gato' ? theme.primary : theme.border }]} onPress={() => updateField('petTipo', 'gato')}>
+                                <Ionicons name="logo-octocat" size={28} color={credential.petTipo === 'gato' ? theme.primary : theme.subText} />
+                                <Text style={[styles.petTypeText, { color: credential.petTipo === 'gato' ? theme.primary : theme.subText }]}>Gato</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.petTypeCard, { backgroundColor: theme.card, borderColor: credential.petTipo === 'otro' ? theme.primary : theme.border }]} onPress={() => updateField('petTipo', 'otro')}>
+                                <Ionicons name="help-circle-outline" size={28} color={credential.petTipo === 'otro' ? theme.primary : theme.subText} />
+                                <Text style={[styles.petTypeText, { color: credential.petTipo === 'otro' ? theme.primary : theme.subText }]}>Otro</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={[styles.sectionTitle, { color: theme.primary }]}>FICHA MÉDICA</Text>
                         {renderRow('Raza', 'petNombre', credential.petNombre)}
-                        {renderRow('Tipo de Sangre', 'petSangre', credential.petSangre)}
-                        {renderRow('Alergias', 'petVacunas', credential.petVacunas)}
+
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
+                            <View style={{ width: '48%' }}>
+                                <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>Fecha de Nacimiento</Text>
+                                <TouchableOpacity onPress={() => { setEditingField('petNacimiento'); setEditingLabel('Fecha de Nacimiento'); setIsModalVisible(true); }} style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border, paddingVertical: 12 }]}>
+                                    <Text style={[styles.infoValue, { color: theme.text, fontSize: 14 }]}>{credential.petNacimiento || 'DD/MM/AAAA'}</Text>
+                                </TouchableOpacity>
+                            </View>
+                            <View style={{ width: '48%' }}>
+                                <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>Edad Actual</Text>
+                                <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border, paddingVertical: 12, opacity: 0.8 }]}>
+                                    <Text style={[styles.infoValue, { color: theme.primary, fontSize: 14, fontWeight: 'bold' }]}>{calcularEdad(credential.petNacimiento)}</Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10}}>
+                            <Text style={[styles.sectionTitle, { color: theme.primary, marginBottom: 0 }]}>VACUNAS APLICADAS</Text>
+                            <TouchableOpacity onPress={addVaccine} style={{flexDirection: 'row', alignItems: 'center'}}>
+                                <Ionicons name="add-circle" size={20} color={theme.primary} />
+                                <Text style={{color: theme.primary, fontWeight: 'bold', fontSize: 12, marginLeft: 4}}>Agregar</Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {credential.petVacunasList && credential.petVacunasList.map((vac: PetVaccine) => (
+                            <View key={vac.id} style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                                <View style={{ width: '48%' }}>
+                                    <TouchableOpacity onPress={() => { setEditingVaccineId(vac.id); setEditingVaccineField('name'); setEditingLabel('Nombre de la Vacuna'); setIsModalVisible(true); }} style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border, paddingVertical: 12 }]}>
+                                        <Text style={[styles.infoValue, { color: theme.text, fontSize: 14 }]} numberOfLines={1}>{vac.name || 'Vacuna'}</Text>
+                                        <Ionicons name="pencil" size={12} color={theme.primary} style={{marginLeft: 5}} />
+                                    </TouchableOpacity>
+                                </View>
+                                <View style={{ width: '48%' }}>
+                                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                                        <TouchableOpacity onPress={() => { setEditingVaccineId(vac.id); setEditingVaccineField('date'); setEditingLabel('Fecha Aplicación'); setIsModalVisible(true); }} style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border, paddingVertical: 12, flex: 1 }]}>
+                                            <Text style={[styles.infoValue, { color: theme.text, fontSize: 14 }]}>{vac.date || 'DD/MM/AAAA'}</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity onPress={() => {
+                                            const newList = credential.petVacunasList.filter((v: PetVaccine) => v.id !== vac.id);
+                                            updateField('petVacunasList', newList);
+                                        }} style={{marginLeft: 8}}>
+                                            <Ionicons name="trash-outline" size={18} color={theme.danger} />
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            </View>
+                        ))}
+
+                        <View style={{marginTop: 10}}>
+                            {renderRow('Tipo de Sangre', 'petSangre', credential.petSangre)}
+                            {renderRow('Chip / Tatuaje', 'petChip', credential.petChip)}
+                        </View>
+                        
                         <Text style={[styles.sectionTitle, { color: theme.primary, marginTop: 20 }]}>EMERGENCIA</Text>
                         {renderRow('Nombre del Veterinario', 'petVeterinario', credential.petVeterinario)}
-                        <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.callButton, borderLeftWidth: 4 }]}>
+                        <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.callButton, borderLeftWidth: 4, marginBottom: 15 }]}>
                             <View style={{ flex: 1 }}>
                                 <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>Teléfono</Text>
                                 <Text style={[styles.infoValue, { color: theme.text, fontWeight: 'bold' }]}>{credential.petVeterinarioTelefono || 'Sin teléfono'}</Text>
@@ -346,23 +397,23 @@ export default function CredentialDetailsScreen() {
                 {renderRow('Notas Adicionales', 'notes', credential.notes)}
 
                 <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border, justifyContent: 'space-between', marginBottom: 10 }]}>
-                    <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 0 }]}>Activar recordatorios</Text>
+                    <Text style={[styles.infoLabel, { color: theme.subText }]}>Activar recordatorios</Text>
                     <Switch value={!!credential.hasReminder} onValueChange={(val) => updateField('hasReminder', val)} trackColor={{ false: "#767577", true: theme.primary }} />
                 </View>
 
                 {credential.hasReminder && (
-                    <>
+                    <View style={{ marginBottom: 20 }}>
                         {credential.reminders?.map((rem: Reminder, index: number) => (
                             <View key={rem.id} style={[styles.reminderCard, { backgroundColor: theme.card, borderColor: theme.primary, borderLeftWidth: 5 }]}>
                                 <View style={styles.reminderHeader}>
                                     <Text style={{fontSize: 10, fontWeight: 'bold', color: theme.primary}}>RECORDATORIO #{index + 1}</Text>
-                                    <TouchableOpacity onPress={() => removeReminder(rem.id)}><Ionicons name="close-circle" size={20} color={theme.danger} /></TouchableOpacity>
+                                    <TouchableOpacity onPress={() => {
+                                        const updatedReminders = credential.reminders.filter((r: Reminder) => r.id !== rem.id);
+                                        updateField('reminders', updatedReminders);
+                                    }}><Ionicons name="close-circle" size={20} color={theme.danger} /></TouchableOpacity>
                                 </View>
-                                <TouchableOpacity style={styles.groupItem} onPress={() => { setEditingReminderId(rem.id); setEditingReminderField('note'); setEditingLabel('¿Qué recordar?'); setIsModalVisible(true); }}>
-                                    <View style={{flex: 1}}>
-                                        <Text style={[styles.infoLabel, { color: theme.subText }]}>¿Qué debemos recordarte?</Text>
-                                        <Text style={[styles.infoValue, { color: theme.text }]}>{rem.note || 'Toca para editar'}</Text>
-                                    </View>
+                                <TouchableOpacity style={styles.groupItem} onPress={() => { setEditingReminderId(rem.id); setEditingReminderField('note'); setEditingLabel('Nota'); setIsModalVisible(true); }}>
+                                    <View style={{flex: 1}}><Text style={[styles.infoLabel, { color: theme.subText }]}>Nota</Text><Text style={[styles.infoValue, { color: theme.text }]}>{rem.note || 'Toca para editar'}</Text></View>
                                     <Ionicons name="pencil" size={14} color={theme.primary} />
                                 </TouchableOpacity>
                                 <View style={styles.divider} />
@@ -378,10 +429,7 @@ export default function CredentialDetailsScreen() {
                                 </View>
                             </View>
                         ))}
-                        <TouchableOpacity style={styles.addReminderBtn} onPress={addReminder}>
-                            <Ionicons name="add-circle-outline" size={22} color={theme.primary} /><Text style={[styles.addReminderText, { color: theme.primary }]}>Agregar otro recordatorio</Text>
-                        </TouchableOpacity>
-                    </>
+                    </View>
                 )}
 
                 <View style={styles.footerButtons}>
@@ -413,18 +461,19 @@ export default function CredentialDetailsScreen() {
                 onClose={() => setIsModalVisible(false)} 
                 onSave={handleSaveModal} 
                 fieldLabel={editingLabel} 
-                placeholder={
-                    editingField === 'autoVencimientoPoliza' ? "DD/MM/AAAA" : 
-                    editingField === 'autoLlantaAncho' ? "205/60R15" : ""
-                }
+                placeholder={editingField === 'autoVencimientoPoliza' || editingField === 'petNacimiento' || editingVaccineField === 'date' ? "DD/MM/AAAA" : ""} 
                 initialValue={
-                    editingReminderId 
-                    ? credential.reminders.find((r: any) => r.id === editingReminderId)?.[editingReminderField] || ''
-                    : (credential ? credential[editingField as any] || '' : '')
+                    editingVaccineId ? credential.petVacunasList.find((v: any) => v.id === editingVaccineId)?.[editingVaccineField] || '' :
+                    editingReminderId ? credential.reminders.find((r: any) => r.id === editingReminderId)?.[editingReminderField] || '' : 
+                    (credential ? credential[editingField as any] || '' : '')
                 } 
                 keyboardType={
-                    editingField === 'petVeterinarioTelefono' || editingField === 'autoAseguradoraTelefono' || 
-                    editingReminderField === 'date' || editingReminderField === 'time' ? 'numeric' : 'default'
+                    editingField === 'petVeterinarioTelefono' || 
+                    editingField === 'autoAseguradoraTelefono' || 
+                    editingField === 'petNacimiento' || 
+                    editingVaccineField === 'date' ||
+                    editingReminderField === 'date' || 
+                    editingReminderField === 'time' ? 'numeric' : 'default'
                 } 
             />
         </SafeAreaView>
@@ -434,11 +483,7 @@ export default function CredentialDetailsScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    scrollContent: { 
-        paddingHorizontal: width * 0.05, 
-        paddingTop: Platform.OS === 'ios' ? 40 : 35, 
-        paddingBottom: height * 0.15 
-    },
+    scrollContent: { paddingHorizontal: width * 0.05, paddingTop: Platform.OS === 'ios' ? 40 : 35, paddingBottom: height * 0.15 },
     sectionTitle: { fontSize: 11, fontWeight: 'bold', marginBottom: 15, letterSpacing: 1.5, textTransform: 'uppercase' },
     infoRow: { flexDirection: 'row', alignItems: 'center', padding: 16, borderRadius: 14, borderWidth: 1, marginBottom: 5 },
     infoLabel: { fontSize: 11, fontWeight: '700' },
@@ -449,9 +494,7 @@ const styles = StyleSheet.create({
     reminderHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 12, paddingTop: 10 },
     groupItem: { padding: 12, flexDirection: 'row', alignItems: 'center' },
     divider: { height: 1, backgroundColor: '#E9ECEF', marginHorizontal: 12 },
-    addReminderBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 15, marginTop: 5, marginBottom: 20 },
-    addReminderText: { fontWeight: 'bold', marginLeft: 8, fontSize: 14 },
-    footerButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10, marginBottom: 20 },
+    footerButtons: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
     actionButton: { flex: 0.48, height: 55, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     buttonText: { color: '#FFF', fontWeight: 'bold', fontSize: 15, marginLeft: 8 },
     pickerTrigger: { padding: 15, borderRadius: 10, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
@@ -460,5 +503,7 @@ const styles = StyleSheet.create({
     modalContent: { borderRadius: 20, padding: 20, borderWidth: 1 },
     modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
     modalItem: { paddingVertical: 15, borderBottomWidth: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    modalItemText: { fontSize: 16 }
+    modalItemText: { fontSize: 16 },
+    petTypeCard: { width: '31%', height: 85, borderRadius: 16, borderWidth: 2, justifyContent: 'center', alignItems: 'center', padding: 10 },
+    petTypeText: { fontSize: 11, fontWeight: 'bold', marginTop: 6 },
 });

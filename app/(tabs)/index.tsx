@@ -3,7 +3,8 @@ import {
     View, Text, StyleSheet, TouchableOpacity, 
     ScrollView, Alert, Modal, Dimensions 
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router'; 
+import { Stack, useRouter, useNavigation } from 'expo-router'; 
+import { DrawerActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -40,6 +41,7 @@ const HealthRing = ({ size, strokeWidth, percentage, color, offset = 0 }: Health
 
 export default function DashboardScreen() {
     const router = useRouter();
+    const navigation = useNavigation();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [userName, setUserName] = useState('Usuario');
     const [showTypeSelector, setShowTypeSelector] = useState(false);
@@ -74,12 +76,21 @@ export default function DashboardScreen() {
                         <Text style={styles.brandText}>Bunker-K</Text>
                         <Text style={styles.welcomeText}>Hola, {userName}</Text>
                     </View>
-                    <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push('/notifications' as any)}>
-                        <Ionicons name="notifications-outline" size={28} color={COLORS.textWhite} />
-                    </TouchableOpacity>
+                    
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push('/notifications' as any)}>
+                            <Ionicons name="notifications-outline" size={26} color={COLORS.textWhite} />
+                        </TouchableOpacity>
+                        
+                        <TouchableOpacity 
+                            style={[styles.notificationBtn, { marginLeft: 12 }]} 
+                            onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+                        >
+                            <Ionicons name="menu-outline" size={30} color={COLORS.textWhite} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
-                {/* WIDGET DE SALUD */}
                 <TouchableOpacity style={styles.healthWidget} onPress={() => Alert.alert("Reporte", "Próximamente detalle de 180 cuentas.")}>
                     <View style={styles.widgetInner}>
                         <View style={styles.canvasContainer}>
@@ -100,6 +111,8 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
 
                 <Text style={styles.sectionTitle}>Categorías</Text>
+                
+                {/* CORREGIDO: View en lugar de div */}
                 <View style={styles.grid}>
                     {categories.map((cat) => (
                         <TouchableOpacity key={cat.id} style={styles.catCard} onPress={() => router.push(`/list?filter=${cat.id}` as any)}>
@@ -136,15 +149,8 @@ export default function DashboardScreen() {
                                 </TouchableOpacity>
                             ))}
                         </View>
-
-                        {/* BOTÓN CANCELAR RECUPERADO */}
-                        <TouchableOpacity 
-                            style={styles.cancelButton} 
-                            onPress={() => setShowTypeSelector(false)}
-                        >
-                            <View style={styles.cancelIconCircle}>
-                                <Ionicons name="close" size={14} color={COLORS.vibrantRed} />
-                            </View>
+                        <TouchableOpacity style={styles.cancelButton} onPress={() => setShowTypeSelector(false)}>
+                            <View style={styles.cancelIconCircle}><Ionicons name="close" size={14} color={COLORS.vibrantRed} /></View>
                             <Text style={styles.cancelText}>Cancelar</Text>
                         </TouchableOpacity>
                     </View>
@@ -155,12 +161,8 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { 
-        paddingHorizontal: '5%', 
-        paddingTop: windowHeight * 0.08, 
-        paddingBottom: 180
-    },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },
+    container: { paddingHorizontal: '5%', paddingTop: windowHeight * 0.08, paddingBottom: 180 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
     brandText: { color: COLORS.textWhite, fontSize: 28, fontWeight: '900' },
     welcomeText: { color: COLORS.textWhite, opacity: 0.6, fontSize: 16 },
     notificationBtn: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 10, borderRadius: 15 },
@@ -175,34 +177,9 @@ const styles = StyleSheet.create({
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     catCard: { width: '48%', backgroundColor: COLORS.darkSlate, padding: 15, borderRadius: 18, marginBottom: 15 },
     catLabel: { color: COLORS.textWhite, fontSize: 14, fontWeight: '600', marginTop: 8 },
-    btnAll: { 
-        flexDirection: 'row', 
-        backgroundColor: COLORS.electricBlue, 
-        padding: 18, 
-        borderRadius: 18, 
-        marginTop: 10, 
-        justifyContent: 'center', 
-        alignItems: 'center',
-        zIndex: 1 
-    },
+    btnAll: { flexDirection: 'row', backgroundColor: COLORS.electricBlue, padding: 18, borderRadius: 18, marginTop: 10, justifyContent: 'center', alignItems: 'center', zIndex: 1 },
     btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
-    fab: { 
-        position: 'absolute', 
-        bottom: windowHeight * 0.07, 
-        right: 25, 
-        width: 65, 
-        height: 65, 
-        borderRadius: 33, 
-        backgroundColor: COLORS.neonGreen,
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        elevation: 12,
-        shadowColor: "#000",
-        shadowOpacity: 0.5,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 6 },
-        zIndex: 999, 
-    },
+    fab: { position: 'absolute', bottom: windowHeight * 0.07, right: 25, width: 65, height: 65, borderRadius: 33, backgroundColor: COLORS.neonGreen, justifyContent: 'center', alignItems: 'center', elevation: 12, shadowColor: "#000", shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: { width: 0, height: 6 }, zIndex: 999 },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: COLORS.darkSlate, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, minHeight: 450 },
     modalTitle: { color: COLORS.textWhite, fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },
@@ -210,29 +187,7 @@ const styles = StyleSheet.create({
     modalItem: { width: '30%', alignItems: 'center', marginBottom: 20 },
     iconCircle: { width: 55, height: 55, borderRadius: 28, justifyContent: 'center', alignItems: 'center', marginBottom: 5 },
     modalItemLabel: { color: COLORS.textWhite, fontSize: 11, textAlign: 'center' },
-    
-    // ESTILOS DEL BOTÓN CANCELAR
-    cancelButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 30,
-        paddingVertical: 10,
-    },
-    cancelIconCircle: {
-        width: 22,
-        height: 22,
-        borderRadius: 11,
-        borderWidth: 1,
-        borderColor: COLORS.vibrantRed,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 8,
-    },
-    cancelText: {
-        color: COLORS.textWhite,
-        fontSize: 16,
-        fontWeight: '500',
-        opacity: 0.8
-    }
+    cancelButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 30, paddingVertical: 10 },
+    cancelIconCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: COLORS.vibrantRed, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
+    cancelText: { color: COLORS.textWhite, fontSize: 16, fontWeight: '500', opacity: 0.8 }
 });

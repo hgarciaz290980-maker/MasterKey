@@ -1,40 +1,107 @@
-import { Stack } from 'expo-router';
+import 'react-native-gesture-handler';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Drawer } from 'expo-router/drawer';
+import { DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
+import { Stack, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Platform, AppState, AppStateStatus, View, ActivityIndicator, StyleSheet } from 'react-native';
+import { Platform, AppState, AppStateStatus, View, ActivityIndicator, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as LocalAuthentication from 'expo-local-authentication';
+import { Ionicons } from '@expo/vector-icons';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { saveNotification } from '../storage/notificationsStorage';
 
-// Configuramos el comportamiento de las notificaciones
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    // Agregamos estas para mayor compatibilidad
-    shouldShowBanner: true, 
-    shouldShowList: true,
-  } as any),
-});
+const COLORS = { 
+    deepMidnight: '#040740', 
+    electricBlue: '#303AF2', 
+    textWhite: '#F8F9FA',
+    danger: '#FF4444'
+};
+
+function CustomDrawerContent(props: any) {
+  const router = useRouter();
+  return (
+    <DrawerContentScrollView {...props} style={{ backgroundColor: COLORS.deepMidnight }}>
+      <View style={[styles.drawerHeader, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }]}>
+  <View>
+    <Text style={styles.brandText}>BUNKER-K</Text>
+    <Text style={styles.sloganText}>TERRITORIO DIGITAL BLINDADO</Text>
+  </View>
+  
+  {/* Botón para cerrar el menú */}
+  <TouchableOpacity onPress={() => props.navigation.closeDrawer()}>
+    <Ionicons name="close-outline" size={28} color={COLORS.textWhite} style={{ opacity: 0.8 }} />
+  </TouchableOpacity>
+</View>
+      <View style={styles.thinDivider} />
+
+      <DrawerItem
+        label="Mi Bóveda"
+        labelStyle={styles.drawerLabel}
+        icon={() => <Ionicons name="shield-checkmark-outline" size={20} color={COLORS.textWhite} />}
+        onPress={() => { props.navigation.closeDrawer(); router.push('/(tabs)' as any); }}
+      />
+      <DrawerItem
+        label="Seguridad"
+        labelStyle={styles.drawerLabel}
+        icon={() => <Ionicons name="finger-print-outline" size={20} color={COLORS.textWhite} />}
+        onPress={() => { props.navigation.closeDrawer(); router.push('/security-settings' as any); }}
+      />
+      <DrawerItem
+        label="Respaldos"
+        labelStyle={styles.drawerLabel}
+        icon={() => <Ionicons name="cloud-upload-outline" size={20} color={COLORS.textWhite} />}
+        onPress={() => { props.navigation.closeDrawer(); router.push('/backup' as any); }}
+      />
+      <DrawerItem
+        label="Configuración"
+        labelStyle={styles.drawerLabel}
+        icon={() => <Ionicons name="options-outline" size={20} color={COLORS.textWhite} />}
+        onPress={() => { props.navigation.closeDrawer(); router.push('/settings' as any); }}
+      />
+
+      <View style={styles.thinDivider} />
+
+      <DrawerItem
+        label="Legal y Privacidad"
+        labelStyle={styles.drawerLabel}
+        icon={() => <Ionicons name="document-lock-outline" size={20} color={COLORS.textWhite} />}
+        onPress={() => { props.navigation.closeDrawer(); router.push('/legal' as any); }}
+      />
+      <DrawerItem
+        label="Preguntas Frecuentes"
+        labelStyle={styles.drawerLabel}
+        icon={() => <Ionicons name="help-circle-outline" size={20} color={COLORS.textWhite} />}
+        onPress={() => { props.navigation.closeDrawer(); router.push('/faq' as any); }}
+      />
+      <DrawerItem
+        label="Soporte Técnico"
+        labelStyle={styles.drawerLabel}
+        icon={() => <Ionicons name="chatbubble-ellipses-outline" size={20} color={COLORS.textWhite} />}
+        onPress={() => { props.navigation.closeDrawer(); router.push('/support' as any); }}
+      />
+
+      <View style={styles.thinDivider} />
+
+      <DrawerItem
+        label="Cerrar Bóveda"
+        labelStyle={[styles.drawerLabel, { color: COLORS.danger, fontWeight: '700' }]}
+        icon={() => <Ionicons name="lock-closed" size={20} color={COLORS.danger} />}
+        onPress={() => { props.navigation.closeDrawer(); }}
+      />
+    </DrawerContentScrollView>
+  );
+}
 
 export default function TabLayout() {
   const [isLocked, setIsLocked] = useState(false);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
 
-  // --- LÓGICA DE SEGURIDAD GLOBAL ---
   useEffect(() => {
     const handleAppStateChange = async (nextAppState: AppStateStatus) => {
-      // Si la app se va a segundo plano o multitarea, la bloqueamos
-      if (nextAppState === 'inactive' || nextAppState === 'background') {
-        setIsLocked(true);
-      }
-
-      // Si regresa a primer plano y estaba bloqueada
-      if (nextAppState === 'active' && isLocked && !isAuthenticating) {
-        authenticateUser();
-      }
+      if (nextAppState === 'inactive' || nextAppState === 'background') setIsLocked(true);
+      if (nextAppState === 'active' && isLocked && !isAuthenticating) authenticateUser();
     };
-
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
   }, [isLocked, isAuthenticating]);
@@ -46,103 +113,44 @@ export default function TabLayout() {
         promptMessage: 'Bunker-K: Confirmar Identidad',
         fallbackLabel: 'Usar código de seguridad',
       });
-
-      if (result.success) {
-        setIsLocked(false);
-      } else {
-        // Si falla o cancela, mantenemos bloqueado para forzar re-intento manual
-        setIsLocked(true);
-      }
-    } catch (error) {
-      console.error("Error de autenticación:", error);
-    } finally {
-      setIsAuthenticating(false);
-    }
+      if (result.success) setIsLocked(false); else setIsLocked(true);
+    } catch (error) { console.error(error); } finally { setIsAuthenticating(false); }
   };
 
-  // --- LÓGICA DE NOTIFICACIONES ---
-  useEffect(() => {
-    async function setupNotifications() {
-      if (Platform.OS === 'web') return;
-      try {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-        if (existingStatus !== 'granted') {
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
-        }
-        if (finalStatus !== 'granted') return;
-
-        if (Platform.OS === 'android') {
-          await Notifications.setNotificationChannelAsync('default', {
-            name: 'Alertas de Bunker-K',
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: '#007BFF',
-            enableVibrate: true,
-            showBadge: true,
-          });
-        }
-      } catch (error) {
-        console.log("Error en setup:", error);
-      }
-    }
-    
-    setupNotifications();
-
-    const notificationSubscription = Notifications.addNotificationReceivedListener(async (notification) => {
-      const { title, body } = notification.request.content;
-      const data = notification.request.content.data as { 
-        description?: string; 
-        type?: 'pet' | 'general'; 
-        url?: string 
-      };
-      
-      await saveNotification({
-        id: notification.request.identifier + "_" + Date.now(),
-        title: title || 'Recordatorio Bunker-K',
-        description: data?.description || body || 'Revisar detalles',
-        date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
-        type: data?.type || 'general',
-        isRead: false,
-        url: data?.url || undefined
-      });
-    });
-
-    return () => notificationSubscription.remove();
-  }, []);
-
-  // --- VISTA DE BLOQUEO ---
-  // Si la app está bloqueada, mostramos una pantalla de carga/seguridad
   if (isLocked) {
     return (
       <View style={styles.lockContainer}>
-        <ActivityIndicator size="large" color="#007BFF" />
-        <View style={{ marginTop: 20 }}>
-          <View style={styles.retryBtn}>
-            <ActivityIndicator size="small" color="#007BFF" />
-          </View>
-        </View>
+        <ActivityIndicator size="large" color={COLORS.electricBlue} />
       </View>
     );
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-    </Stack>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Drawer 
+          drawerContent={(props) => <CustomDrawerContent {...props} />}
+          screenOptions={{
+            drawerPosition: 'right',
+            headerShown: false, // <-- IMPORTANTE: Esto quita el texto "(tabs)" de arriba
+            drawerType: 'front',
+            drawerStyle: { width: '80%' }
+          }}
+        >
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" />
+          </Stack>
+        </Drawer>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  lockContainer: {
-    flex: 1,
-    backgroundColor: '#121212', // O el color de fondo de tu tema
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  retryBtn: {
-    padding: 15,
-    borderRadius: 10,
-  }
+  lockContainer: { flex: 1, backgroundColor: COLORS.deepMidnight, justifyContent: 'center', alignItems: 'center' },
+  drawerHeader: { padding: 25, paddingTop: 50 },
+  brandText: { color: COLORS.textWhite, fontSize: 22, fontWeight: '900', letterSpacing: 1 },
+  sloganText: { color: COLORS.textWhite, opacity: 0.4, fontSize: 10, marginTop: 4 },
+  drawerLabel: { color: COLORS.textWhite, fontSize: 14, fontWeight: '400', marginLeft: -10 },
+  thinDivider: { height: 0.4, backgroundColor: COLORS.textWhite, opacity: 0.15, marginVertical: 12, width: '85%', alignSelf: 'center' },
 });

@@ -3,12 +3,16 @@ import {
     View, Text, StyleSheet, TouchableOpacity, 
     ScrollView, Alert, Modal, Dimensions 
 } from 'react-native';
-import { Stack, useRouter, useNavigation } from 'expo-router'; 
+import { Stack, useRouter, useNavigation, useFocusEffect } from 'expo-router'; // Inyectado useFocusEffect
 import { DrawerActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Circle, G } from 'react-native-svg';
+
+// IMPORTACIONES DE SALUD
+import { getAllCredentials } from '../../storage/credentials';
+import { calculateVaultHealth, VaultStats } from '../../storage/securityEngine';
 
 const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
 
@@ -46,6 +50,14 @@ export default function DashboardScreen() {
     const [userName, setUserName] = useState('Usuario');
     const [showTypeSelector, setShowTypeSelector] = useState(false);
 
+    // ESTADO DINÁMICO DEL WIDGET
+    const [stats, setStats] = useState<VaultStats>({
+        high: { count: 0, percent: 0 },
+        medium: { count: 0, percent: 0 },
+        low: { count: 0, percent: 0 },
+        totalScore: 0
+    });
+
     const categories = [
         { id: 'fav', label: 'Recurrentes', icon: 'star', color: '#FFC107' },
         { id: 'personal', label: 'Personal', icon: 'person', color: COLORS.neonGreen },
@@ -55,10 +67,23 @@ export default function DashboardScreen() {
         { id: 'entertainment', label: 'Entretenimiento', icon: 'play-circle', color: '#e83e8c' },
     ];
 
+    // CARGA DE DATOS CADA VEZ QUE LA PANTALLA TIENE FOCO
+    useFocusEffect(
+        React.useCallback(() => {
+            const loadData = async () => {
+                const name = await AsyncStorage.getItem('user_name');
+                if (name) setUserName(name);
+                
+                const data = await getAllCredentials();
+                const newStats = calculateVaultHealth(data);
+                setStats(newStats);
+            };
+            loadData();
+        }, [])
+    );
+
     useEffect(() => {
         (async () => {
-            const name = await AsyncStorage.getItem('user_name');
-            if (name) setUserName(name);
             const result = await LocalAuthentication.authenticateAsync({ promptMessage: 'Acceso a Bunker-K' });
             if (result.success) setIsAuthenticated(true);
         })();
@@ -91,28 +116,28 @@ export default function DashboardScreen() {
                     </View>
                 </View>
 
-                <TouchableOpacity style={styles.healthWidget} onPress={() => Alert.alert("Reporte", "Próximamente detalle de 180 cuentas.")}>
+                {/* WIDGET DINÁMICO CONECTADO AL MOTOR */}
+                <TouchableOpacity style={styles.healthWidget} onPress={() => Alert.alert("Reporte de Salud", `Tienes ${stats.high.count + stats.medium.count + stats.low.count} cuentas analizadas.`)}>
                     <View style={styles.widgetInner}>
                         <View style={styles.canvasContainer}>
                             <Svg height={windowWidth * 0.3} width={windowWidth * 0.3} viewBox="0 0 120 120">
-                                <HealthRing size={120} strokeWidth={10} percentage={80} color={COLORS.neonGreen} offset={0} />
-                                <HealthRing size={120} strokeWidth={10} percentage={45} color={COLORS.electricPurple} offset={16} />
-                                <HealthRing size={120} strokeWidth={10} percentage={20} color={COLORS.vibrantRed} offset={32} />
+                                <HealthRing size={120} strokeWidth={10} percentage={stats.high.percent} color={COLORS.neonGreen} offset={0} />
+                                <HealthRing size={120} strokeWidth={10} percentage={stats.medium.percent} color={COLORS.electricPurple} offset={16} />
+                                <HealthRing size={120} strokeWidth={10} percentage={stats.low.percent} color={COLORS.vibrantRed} offset={32} />
                             </Svg>
-                            <View style={styles.scoreContainer}><Text style={styles.scoreText}>80%</Text></View>
+                            <View style={styles.scoreContainer}><Text style={styles.scoreText}>{stats.totalScore}%</Text></View>
                         </View>
                         <View style={{ marginLeft: 20, flex: 1 }}>
                             <Text style={styles.widgetTitle}>Salud Bóveda</Text>
-                            <Text style={styles.statusText}><Ionicons name="shield-checkmark" color={COLORS.neonGreen} /> Fuertes (144)</Text>
-                            <Text style={styles.statusText}><Ionicons name="alert-circle" color={COLORS.electricPurple} /> Medias (18)</Text>
-                            <Text style={styles.statusText}><Ionicons name="warning" color={COLORS.vibrantRed} /> Riesgo (18)</Text>
+                            <Text style={styles.statusText}><Ionicons name="shield-checkmark" color={COLORS.neonGreen} /> Fuertes ({stats.high.count})</Text>
+                            <Text style={styles.statusText}><Ionicons name="alert-circle" color={COLORS.electricPurple} /> Medias ({stats.medium.count})</Text>
+                            <Text style={styles.statusText}><Ionicons name="warning" color={COLORS.vibrantRed} /> Riesgo ({stats.low.count})</Text>
                         </View>
                     </View>
                 </TouchableOpacity>
 
                 <Text style={styles.sectionTitle}>Categorías</Text>
                 
-                {/* CORREGIDO: View en lugar de div */}
                 <View style={styles.grid}>
                     {categories.map((cat) => (
                         <TouchableOpacity key={cat.id} style={styles.catCard} onPress={() => router.push(`/list?filter=${cat.id}` as any)}>

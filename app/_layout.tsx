@@ -44,14 +44,14 @@ function CustomDrawerContent(props: any) {
       <DrawerItem
         label="Seguridad"
         labelStyle={styles.drawerLabel}
-        icon={() => <Ionicons name="finger-print-outline" size={20} color={COLORS.textWhite} />}
-        onPress={() => { props.navigation.closeDrawer(); router.push('/security-settings' as any); }}
-      />
+  icon={() => <Ionicons name="shield-half-outline" size={20} color={COLORS.textWhite} />}
+  onPress={() => { props.navigation.closeDrawer(); router.push('/security' as any); }}
+/>
       <DrawerItem
         label="Respaldos"
         labelStyle={styles.drawerLabel}
         icon={() => <Ionicons name="cloud-upload-outline" size={20} color={COLORS.textWhite} />}
-        onPress={() => { props.navigation.closeDrawer(); router.push('/backup' as any); }}
+        onPress={() => { props.navigation.closeDrawer(); router.push('/backups' as any); }}
       />
       <DrawerItem
         label="Configuración"

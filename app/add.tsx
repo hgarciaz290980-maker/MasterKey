@@ -6,11 +6,10 @@ import {
 import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-// --- AJUSTE DE RUTA DE SERVICIO ---
+// --- SERVICIOS ---
 import { createCredential, Credential, getAllCredentials } from '../storage/credentials';
 // @ts-ignore
 import { uploadToGoogleDrive } from './components/googleDriveService';
-// ------------------------------------
 
 import SpecialCategoryForm from './components/SpecialCategoryForm';
 import * as Notifications from 'expo-notifications';
@@ -28,14 +27,17 @@ export default function AddCredentialScreen() {
     const router = useRouter();
     const { type } = useLocalSearchParams<{ type: string }>();
     
+    // ESTADOS DEL FORMULARIO
     const [accountName, setAccountName] = useState('');
     const [alias, setAlias] = useState('');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [websiteUrl, setWebsiteUrl] = useState('');
     const [notes, setNotes] = useState('');
-    const [category, setCategory] = useState<Credential['category']>((type as any) || 'personal');
+    const [category, setCategory] = useState<Credential['category']>('personal');
     const [specialData, setSpecialData] = useState<any>({});
+    
+    // UI STATES
     const [showPassword, setShowPassword] = useState(false);
     const [showPicker, setShowPicker] = useState(false);
 
@@ -47,6 +49,29 @@ export default function AddCredentialScreen() {
         { id: 'mobility', label: 'Movilidad' },
         { id: 'entertainment', label: 'Entretenimiento' },
     ];
+
+    // 🛡️ CIRUGÍA ANTI-FANTASMAS: Resetear todo cuando el "type" cambia
+    useEffect(() => {
+        if (type) {
+            setCategory(type as any);
+            setAccountName('');
+            setAlias('');
+            setUsername('');
+            setPassword('');
+            setWebsiteUrl('');
+            setNotes('');
+            setSpecialData({});
+        }
+    }, [type]);
+
+    useEffect(() => { checkPermissions(); }, []);
+
+    const checkPermissions = async () => {
+        if (Device.isDevice) {
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            if (existingStatus !== 'granted') await Notifications.requestPermissionsAsync();
+        }
+    };
 
     const formatAutoDate = (text: string) => {
         const cleaned = text.replace(/\D/g, '');
@@ -60,49 +85,6 @@ export default function AddCredentialScreen() {
         let finalValue = value;
         if (field.toLowerCase().includes('fecha')) finalValue = formatAutoDate(value);
         setSpecialData((prev: any) => ({ ...prev, [field]: finalValue }));
-    };
-
-    useEffect(() => { checkPermissions(); }, []);
-
-    const checkPermissions = async () => {
-        if (Device.isDevice) {
-            const { status: existingStatus } = await Notifications.getPermissionsAsync();
-            if (existingStatus !== 'granted') await Notifications.requestPermissionsAsync();
-        }
-    };
-
-    const scheduleCategoryNotification = async (name: string, data: any) => {
-        try {
-            const dateStr = data.petFechaAlerta || data.autoFechaAlerta;
-            const timeStr = data.petHoraAlerta || data.autoHoraAlerta;
-            const period = data.petPeriodoAlerta || data.autoPeriodoAlerta || 'AM';
-
-            if (dateStr && timeStr) {
-                const [day, month, year] = dateStr.trim().split('/').map(Number);
-                const [rawHour, minutes] = timeStr.trim().split(':').map(Number);
-                let hour = rawHour;
-                if (period === 'PM' && hour < 12) hour += 12;
-                if (period === 'AM' && hour === 12) hour = 0;
-                const triggerDate = new Date(year, month - 1, day, hour, minutes, 0);
-                
-                if (triggerDate.getTime() > Date.now()) {
-                    await Notifications.scheduleNotificationAsync({
-                        // Usamos el nombre y la fecha como ID único temporal para el alta
-                        identifier: `new-item-${name}-${Date.now()}`,
-                        content: {
-                            title: `🚨 Bunker-K: ${name}`,
-                            body: `Recordatorio: ${data.petNotas || data.autoNotas || 'Revisar detalles.'}`,
-                            data: { type: category },
-                            priority: Notifications.AndroidNotificationPriority.MAX,
-                        },
-                        trigger: { 
-                            date: triggerDate,
-                            channelId: 'default'
-                        } as any,
-                    });
-                }
-            }
-        } catch (error) { console.error(error); }
     };
 
     const handleSave = async () => {
@@ -122,12 +104,8 @@ export default function AddCredentialScreen() {
                 ...specialData 
             });
 
-            await scheduleCategoryNotification(accountName, specialData);
-
-            // --- TRIGGER DE DRIVE ---
             const allData = await getAllCredentials();
             const jsonData = JSON.stringify(allData);
-            
             uploadToGoogleDrive(jsonData).then((success: boolean) => {
                 if (success) console.log("Copia de seguridad automática actualizada en Drive");
             });
@@ -145,17 +123,22 @@ export default function AddCredentialScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <Stack.Screen options={{ title: `Nuevo: ${categories.find(c => c.id === category)?.label}`, headerShown: true }} />
+            <Stack.Screen options={{ 
+                title: `Nuevo: ${categories.find(c => c.id === category)?.label}`, 
+                headerShown: true,
+                headerStyle: { backgroundColor: '#121212' },
+                headerTintColor: '#FFF'
+            }} />
             <ScrollView contentContainerStyle={styles.scroll}>
                 
                 <Text style={styles.label}>
-                    {category === 'pet' ? 'Nombre de tu perrhijo o gathijo *' : (category === 'mobility' ? 'Auto *' : 'Nombre de la cuenta *')}
+                    {category === 'pet' ? 'Nombre de tu mascota *' : (category === 'mobility' ? 'Vehículo *' : 'Nombre de la cuenta *')}
                 </Text>
                 <TextInput 
                     style={styles.input} 
                     value={accountName} 
                     onChangeText={setAccountName} 
-                    placeholder={category === 'pet' ? "Ej: Toby, Luna, Pelusa..." : (category === 'mobility' ? "Ej: Mazda, BYD, Toyota" : "Ej: Netflix, Mi Banco...")} 
+                    placeholder={category === 'pet' ? "Ej: Toby, Luna..." : (category === 'mobility' ? "Ej: Mazda 3..." : "Ej: Netflix...")} 
                     placeholderTextColor="#666" 
                 />
                 
@@ -166,7 +149,7 @@ export default function AddCredentialScreen() {
                             style={styles.input} 
                             value={alias} 
                             onChangeText={setAlias} 
-                            placeholder={category === 'mobility' ? "Ej: Bumblebee, Halcón Milenario..." : "Ej: Cuenta Personal"} 
+                            placeholder={category === 'mobility' ? "Ej: Mi coche" : "Ej: Cuenta Personal"} 
                             placeholderTextColor="#666" 
                         />
                     </>
@@ -178,7 +161,13 @@ export default function AddCredentialScreen() {
                     <Ionicons name="chevron-down" size={20} color="#007BFF" />
                 </TouchableOpacity>
 
-                <SpecialCategoryForm category={category} formData={specialData} onChange={handleSpecialChange} isDark={true} />
+                <SpecialCategoryForm 
+                    key={`form-${category}`}
+                    category={category} 
+                    formData={specialData} 
+                    onChange={handleSpecialChange} 
+                    isDark={true} 
+                />
 
                 {category !== 'pet' && category !== 'mobility' && (
                     <>

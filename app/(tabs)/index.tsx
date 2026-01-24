@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react'; 
 import { 
     View, Text, StyleSheet, TouchableOpacity, 
-    ScrollView, Alert, Modal, Dimensions 
+    ScrollView, Alert, Modal, Dimensions, StatusBar
 } from 'react-native';
-import { Stack, useRouter, useNavigation, useFocusEffect } from 'expo-router'; // Inyectado useFocusEffect
+import { Stack, useRouter, useNavigation, useFocusEffect } from 'expo-router'; 
 import { DrawerActions } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -50,7 +50,6 @@ export default function DashboardScreen() {
     const [userName, setUserName] = useState('Usuario');
     const [showTypeSelector, setShowTypeSelector] = useState(false);
 
-    // ESTADO DINÁMICO DEL WIDGET
     const [stats, setStats] = useState<VaultStats>({
         high: { count: 0, percent: 0 },
         medium: { count: 0, percent: 0 },
@@ -67,11 +66,10 @@ export default function DashboardScreen() {
         { id: 'entertainment', label: 'Entretenimiento', icon: 'play-circle', color: '#e83e8c' },
     ];
 
-    // CARGA DE DATOS CADA VEZ QUE LA PANTALLA TIENE FOCO
     useFocusEffect(
         React.useCallback(() => {
             const loadData = async () => {
-                const name = await AsyncStorage.getItem('user_name');
+                const name = await AsyncStorage.getItem('user_alias');
                 if (name) setUserName(name);
                 
                 const data = await getAllCredentials();
@@ -93,31 +91,35 @@ export default function DashboardScreen() {
 
     return (
         <View style={{ flex: 1, backgroundColor: COLORS.deepMidnight }}>
+            <StatusBar barStyle="light-content" />
             <Stack.Screen options={{ headerShown: false }} />
             
             <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+                
                 <View style={styles.headerRow}>
-                    <View>
+                    <View style={{ flex: 1, paddingRight: 10 }}>
                         <Text style={styles.brandText}>Bunker-K</Text>
                         <Text style={styles.welcomeText}>Hola, {userName}</Text>
+                        <Text style={styles.subWelcomeText}>
+                            Aquí tienes tu información, segura y en el momento que la necesites.
+                        </Text>
                     </View>
                     
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push('/notifications' as any)}>
-                            <Ionicons name="notifications-outline" size={26} color={COLORS.textWhite} />
+                            <Ionicons name="notifications-outline" size={24} color={COLORS.textWhite} />
                         </TouchableOpacity>
                         
                         <TouchableOpacity 
-                            style={[styles.notificationBtn, { marginLeft: 12 }]} 
+                            style={[styles.notificationBtn, { marginLeft: 10 }]} 
                             onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
                         >
-                            <Ionicons name="menu-outline" size={30} color={COLORS.textWhite} />
+                            <Ionicons name="menu-outline" size={28} color={COLORS.textWhite} />
                         </TouchableOpacity>
                     </View>
                 </View>
 
-                {/* WIDGET DINÁMICO CONECTADO AL MOTOR */}
-                <TouchableOpacity style={styles.healthWidget} onPress={() => Alert.alert("Reporte de Salud", `Tienes ${stats.high.count + stats.medium.count + stats.low.count} cuentas analizadas.`)}>
+                <TouchableOpacity style={styles.healthWidget} onPress={() => Alert.alert("Salud", `Puntaje: ${stats.totalScore}%`)}>
                     <View style={styles.widgetInner}>
                         <View style={styles.canvasContainer}>
                             <Svg height={windowWidth * 0.3} width={windowWidth * 0.3} viewBox="0 0 120 120">
@@ -147,14 +149,14 @@ export default function DashboardScreen() {
                     ))}
                 </View>
 
-                <TouchableOpacity style={styles.btnAll} onPress={() => router.push('/list?filter=all' as any)}>
+                <TouchableOpacity style={styles.btnAll} onPress={() => router.push('/list' as any)}>
                     <Ionicons name="key" size={20} color="#FFF" />
                     <Text style={styles.btnText}> Todas mis cuentas</Text>
                 </TouchableOpacity>
             </ScrollView>
 
             <TouchableOpacity 
-                style={[styles.fab, { backgroundColor: COLORS.neonGreen }]} 
+                style={styles.fab} 
                 onPress={() => setShowTypeSelector(true)}
             >
                 <Ionicons name="add" size={35} color="#FFF" />
@@ -166,7 +168,15 @@ export default function DashboardScreen() {
                         <Text style={styles.modalTitle}>¿Qué deseas agregar?</Text>
                         <View style={styles.modalGrid}>
                             {categories.map((cat) => (
-                                <TouchableOpacity key={cat.id} style={styles.modalItem} onPress={() => { setShowTypeSelector(false); router.push(`/add?type=${cat.id}` as any); }}>
+                                <TouchableOpacity 
+                                    key={cat.id} 
+                                    style={styles.modalItem} 
+                                    onPress={() => { 
+                                        setShowTypeSelector(false); 
+                                        // RUTA DE NAVEGACIÓN CORREGIDA
+                                        router.push({ pathname: '/create', params: { type: cat.id } } as any); 
+                                    }}
+                                >
                                     <View style={[styles.iconCircle, { backgroundColor: cat.color + '20' }]}>
                                         <Ionicons name={cat.icon as any} size={28} color={cat.color} />
                                     </View>
@@ -187,9 +197,10 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
     container: { paddingHorizontal: '5%', paddingTop: windowHeight * 0.08, paddingBottom: 180 },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 25 },
     brandText: { color: COLORS.textWhite, fontSize: 28, fontWeight: '900' },
-    welcomeText: { color: COLORS.textWhite, opacity: 0.6, fontSize: 16 },
+    welcomeText: { color: COLORS.textWhite, fontSize: 18, fontWeight: '600', marginTop: 2 },
+    subWelcomeText: { color: COLORS.textWhite, opacity: 0.4, fontSize: 11, marginTop: 4, lineHeight: 16 },
     notificationBtn: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 10, borderRadius: 15 },
     healthWidget: { backgroundColor: COLORS.darkSlate, borderRadius: 24, padding: 20, marginBottom: 25 },
     widgetInner: { flexDirection: 'row', alignItems: 'center' },
@@ -202,9 +213,9 @@ const styles = StyleSheet.create({
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     catCard: { width: '48%', backgroundColor: COLORS.darkSlate, padding: 15, borderRadius: 18, marginBottom: 15 },
     catLabel: { color: COLORS.textWhite, fontSize: 14, fontWeight: '600', marginTop: 8 },
-    btnAll: { flexDirection: 'row', backgroundColor: COLORS.electricBlue, padding: 18, borderRadius: 18, marginTop: 10, justifyContent: 'center', alignItems: 'center', zIndex: 1 },
+    btnAll: { flexDirection: 'row', backgroundColor: COLORS.electricBlue, padding: 18, borderRadius: 18, marginTop: 10, justifyContent: 'center', alignItems: 'center' },
     btnText: { color: '#FFF', fontWeight: 'bold', fontSize: 15 },
-    fab: { position: 'absolute', bottom: windowHeight * 0.07, right: 25, width: 65, height: 65, borderRadius: 33, backgroundColor: COLORS.neonGreen, justifyContent: 'center', alignItems: 'center', elevation: 12, shadowColor: "#000", shadowOpacity: 0.5, shadowRadius: 8, shadowOffset: { width: 0, height: 6 }, zIndex: 999 },
+    fab: { position: 'absolute', bottom: windowHeight * 0.07, right: 25, width: 65, height: 65, borderRadius: 33, backgroundColor: COLORS.neonGreen, justifyContent: 'center', alignItems: 'center', elevation: 12, zIndex: 999 },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: COLORS.darkSlate, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, minHeight: 450 },
     modalTitle: { color: COLORS.textWhite, fontSize: 20, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 },

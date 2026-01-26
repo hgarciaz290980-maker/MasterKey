@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Switch, SafeAreaView, Platform, Modal, StatusBar } from 'react-native';
-import { useNavigation } from 'expo-router';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Switch, SafeAreaView, Platform, Modal, StatusBar, Alert } from 'react-native';
+import { useNavigation, useRouter } from 'expo-router'; // Añadimos useRouter
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import Constants from 'expo-constants';
 
-// --- IMPORTACIÓN DEL MOTOR DE NOMBRE ---
-import { getUserName, saveUserName } from '../storage/userStorage';
+// --- IMPORTACIÓN ACTUALIZADA DEL MOTOR ---
+import { getUserName, saveUserName, getUserID, saveUserID, getBiometricsStatus, saveBiometricsStatus } from '../storage/userStorage';
 
 const COLORS = {
     deepMidnight: '#040740',
     darkSlate: '#172140',
     electricBlue: '#303AF2',
     neonGreen: '#0DAC40',
-    textWhite: '#F8F9FA'
+    textWhite: '#F8F9FA',
+    vibrantRed: '#FF0000'
 };
 
 const SectionHeader = ({ title }: { title: string }) => {
@@ -33,24 +35,44 @@ const SectionHeader = ({ title }: { title: string }) => {
 };
 
 export default function SettingsScreen() {
+    const router = useRouter(); // Hook para la navegación de regreso
     const [alias, setAlias] = useState("");
+    const [accessID, setAccessID] = useState("");
+    const [isBioActive, setIsBioActive] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [showPremiumModal, setShowPremiumModal] = useState(false);
 
-    // 🔄 CARGAR NOMBRE AL ENTRAR
+    // 🔄 CARGAR DATOS AL ENTRAR
     useEffect(() => {
-        const loadInitialName = async () => {
-            const storedName = await getUserName();
-            setAlias(storedName);
+        const loadSettings = async () => {
+            const storedName = await AsyncStorage.getItem('user_name');
+            const storedID = await AsyncStorage.getItem('user_id');
+            const storedBio = await AsyncStorage.getItem('use_bio');
+            
+            if (storedName) setAlias(storedName);
+            if (storedID) setAccessID(storedID);
+            if (storedBio) setIsBioActive(JSON.parse(storedBio));
         };
-        loadInitialName();
+        loadSettings();
     }, []);
 
-    // 💾 GUARDAR NOMBRE AL EDITAR
-    const handleNameChange = async (newName: string) => {
-        setAlias(newName);
-        await saveUserName(newName);
+    // 💾 FUNCIÓN PARA GUARDAR TODO Y VOLVER
+    const handleFinalSave = async () => {
+        try {
+            await AsyncStorage.setItem('user_name', alias);
+            await AsyncStorage.setItem('user_id', accessID);
+            await AsyncStorage.setItem('use_bio', JSON.stringify(isBioActive));
+            
+            // Regresamos al menú de hamburguesa
+            router.back();
+        } catch (error) {
+            Alert.alert("Error", "No se pudieron guardar los ajustes.");
+        }
     };
+
+    const handleNameChange = (newName: string) => setAlias(newName);
+    const handleIDChange = (newID: string) => setAccessID(newID);
+    const toggleBiometrics = (value: boolean) => setIsBioActive(value);
 
     const appVersion = Constants.expoConfig?.version || "1.0.0";
 
@@ -61,22 +83,58 @@ export default function SettingsScreen() {
 
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 
-                <Text style={styles.sectionLabel}>MI PERFIL</Text>
+                <Text style={styles.sectionLabel}>MI IDENTIDAD DIGITAL</Text>
                 <View style={styles.group}>
                     <View style={styles.profileItem}>
-                        <Ionicons name="person-circle-outline" size={32} color={COLORS.electricBlue} />
+                        <Ionicons name="person-circle-outline" size={30} color={COLORS.electricBlue} />
                         <View style={{ flex: 1, marginLeft: 12 }}>
                             <Text style={styles.externalLabel}>Alias del Bunker</Text>
                             <View style={styles.inputBox}>
                                 <TextInput 
                                     style={styles.inputStyle}
                                     value={alias}
-                                    onChangeText={handleNameChange} // Ahora guarda mientras escribes
+                                    onChangeText={handleNameChange}
                                     placeholder="Tu nombre aquí..."
                                     placeholderTextColor="rgba(255,255,255,0.2)"
                                 />
                             </View>
                         </View>
+                    </View>
+
+                    <View style={styles.thinLine} />
+
+                    <View style={styles.profileItem}>
+                        <Ionicons name="keypad-outline" size={28} color={COLORS.neonGreen} />
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                            <Text style={styles.externalLabel}>ID de Acceso (Respaldo)</Text>
+                            <View style={styles.inputBox}>
+                                <TextInput 
+                                    style={styles.inputStyle}
+                                    value={accessID}
+                                    onChangeText={handleIDChange}
+                                    placeholder="ID Numérico"
+                                    placeholderTextColor="rgba(255,255,255,0.2)"
+                                    keyboardType="numeric"
+                                    secureTextEntry
+                                />
+                            </View>
+                        </View>
+                    </View>
+                </View>
+
+                <Text style={styles.sectionLabel}>SEGURIDAD</Text>
+                <View style={styles.group}>
+                    <View style={styles.item}>
+                        <Ionicons name="finger-print" size={22} color={COLORS.neonGreen} />
+                        <View style={{ flex: 1, marginLeft: 15 }}>
+                            <Text style={styles.itemLabel}>Seguridad Biométrica</Text>
+                            <Text style={styles.appearanceSub}>Usar huella para entrar</Text>
+                        </View>
+                        <Switch 
+                            value={isBioActive} 
+                            onValueChange={toggleBiometrics}
+                            trackColor={{ false: '#333', true: COLORS.neonGreen }}
+                        />
                     </View>
                 </View>
 
@@ -110,6 +168,18 @@ export default function SettingsScreen() {
                             trackColor={{ false: '#333', true: COLORS.neonGreen }}
                         />
                     </View>
+                </View>
+
+                {/* --- BOTÓN DE GUARDAR AGREGADO AQUÍ --- */}
+                <View style={{ marginTop: 40, marginBottom: 10 }}>
+                    <TouchableOpacity 
+                        style={styles.saveButton} 
+                        onPress={handleFinalSave}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="shield-checkmark" size={22} color="#FFF" />
+                        <Text style={styles.saveButtonText}>GUARDAR Y VOLVER</Text>
+                    </TouchableOpacity>
                 </View>
 
                 <View style={styles.infoFooter}>
@@ -152,6 +222,7 @@ const styles = StyleSheet.create({
     sectionLabel: { color: COLORS.textWhite, opacity: 0.4, fontSize: 10, fontWeight: 'bold', marginBottom: 10, marginTop: 25, letterSpacing: 1.5 },
     group: { backgroundColor: COLORS.darkSlate, borderRadius: 16, overflow: 'hidden', borderWidth: 0.4, borderColor: 'rgba(255,255,255,0.08)' },
     profileItem: { flexDirection: 'row', alignItems: 'center', padding: 15 },
+    thinLine: { height: 0.4, backgroundColor: 'rgba(255,255,255,0.1)', marginHorizontal: 15 },
     externalLabel: { color: COLORS.textWhite, opacity: 0.4, fontSize: 10, fontWeight: '600', marginBottom: 6, marginLeft: 2 },
     inputBox: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10 },
     inputStyle: { color: '#FFF', fontSize: 15, fontWeight: '500', padding: 0 },
@@ -163,7 +234,21 @@ const styles = StyleSheet.create({
     item: { flexDirection: 'row', alignItems: 'center', padding: 15 },
     itemLabel: { color: COLORS.textWhite, fontSize: 15, fontWeight: '600' },
     appearanceSub: { color: COLORS.textWhite, opacity: 0.4, fontSize: 11, marginTop: 2 },
-    infoFooter: { marginTop: 50, alignItems: 'center', marginBottom: 40 },
+    saveButton: { 
+        backgroundColor: COLORS.electricBlue, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        paddingVertical: 16, 
+        borderRadius: 16,
+        shadowColor: COLORS.electricBlue,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        elevation: 8
+    },
+    saveButtonText: { color: '#FFF', fontWeight: '900', fontSize: 14, marginLeft: 10, letterSpacing: 1 },
+    infoFooter: { marginTop: 20, alignItems: 'center', marginBottom: 40 },
     versionText: { color: COLORS.textWhite, opacity: 0.6, fontSize: 14, fontWeight: 'bold' },
     creditsText: { color: COLORS.textWhite, opacity: 0.3, fontSize: 11, marginTop: 5 },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(4, 7, 64, 0.98)', justifyContent: 'center', alignItems: 'center' },

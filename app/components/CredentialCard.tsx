@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, useColorScheme } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Credential } from '../../storage/credentials';
 
@@ -8,34 +8,27 @@ interface CredentialCardProps {
     onPress: () => void;
 }
 
+// Colores oficiales del Búnker [cite: 2026-01-26]
+const COLORS = {
+    deepMidnight: '#040740',
+    electricBlue: '#303AF2',
+    darkSlate: '#172140',
+    neonGreen: '#0DAC40',
+    textWhite: '#F8F9FA'
+};
+
 export default function CredentialCard({ credential, onPress }: CredentialCardProps) {
     const [imageError, setImageError] = useState(false);
-    const colorScheme = useColorScheme();
     
-    // Diccionario de colores integrado para la tarjeta
-    const isDark = colorScheme === 'dark';
-    const theme = {
-        card: isDark ? '#1b1e2cff' : '#FFFFFF',
-        text: isDark ? '#F8F9FA' : '#212529',
-        subText: isDark ? '#ADB5BD' : '#6C757D',
-        border: isDark ? '#333333' : '#E9ECEF',
-        iconBg: isDark ? '#2C2C2C' : '#F8F9FA',
-        primary: isDark ? '#3DA9FC' : '#007BFF'
-    };
-
     const getInitial = (name: string) => (name ? name.charAt(0).toUpperCase() : '?');
 
     const getDomain = (url: string | undefined) => {
         if (!url) return null;
         try {
             return url
-                .replace('https://', '')
-                .replace('http://', '')
-                .replace('www.', '')
-                .split(/[/?#]/)[0];
-        } catch {
-            return null;
-        }
+                .replace('https://', '').replace('http://', '')
+                .replace('www.', '').split(/[/?#]/)[0];
+        } catch { return null; }
     };
 
     const domain = getDomain(credential.websiteUrl);
@@ -43,11 +36,11 @@ export default function CredentialCard({ credential, onPress }: CredentialCardPr
 
     return (
         <TouchableOpacity 
-            style={[styles.card, { backgroundColor: theme.card }]} 
+            style={styles.card} 
             onPress={onPress} 
-            activeOpacity={0.7}
+            activeOpacity={0.8}
         >
-            <View style={[styles.iconContainer, { backgroundColor: theme.iconBg, borderColor: theme.border }]}>
+            <View style={styles.iconContainer}>
                 {logoUrl && !imageError ? (
                     <Image 
                         source={{ uri: logoUrl }} 
@@ -55,23 +48,22 @@ export default function CredentialCard({ credential, onPress }: CredentialCardPr
                         onError={() => setImageError(true)} 
                     />
                 ) : (
-                    <Text style={[styles.initialText, { color: theme.primary }]}>
+                    <Text style={styles.initialText}>
                         {getInitial(credential.accountName)}
                     </Text>
                 )}
             </View>
             
             <View style={styles.infoContainer}>
-                <Text style={[styles.accountName, { color: theme.text }]} numberOfLines={1}>
-                    {credential.accountName}
+                <Text style={styles.accountName} numberOfLines={1}>
+                    {credential.accountName.toUpperCase()}
                 </Text>
-                {/* Se muestra el Alias en lugar del usuario para mayor privacidad en 'All accounts' */}
-                <Text style={[styles.username, { color: theme.subText }]} numberOfLines={1}>
-                    {credential.alias || 'Sin alias'}
+                <Text style={styles.username} numberOfLines={1}>
+                    {credential.alias || (credential.category === 'pet' ? 'MASCOTA' : 'SIN ALIAS')}
                 </Text>
             </View>
 
-            <Ionicons name="chevron-forward" size={18} color="#ADB5BD" />
+            <Ionicons name="chevron-forward" size={18} color={COLORS.neonGreen} />
         </TouchableOpacity>
     );
 }
@@ -80,37 +72,53 @@ const styles = StyleSheet.create({
     card: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 15,
-        borderRadius: 14,
-        marginBottom: 10,
+        paddingVertical: 12,
+        paddingHorizontal: 18,
+        backgroundColor: COLORS.darkSlate, // Fondo Dark Slate [cite: 2026-01-26]
+        borderRadius: 20,
+        marginBottom: 12,
         marginHorizontal: 5,
-        elevation: 3,
-        shadowColor: '#000',
+        // Sutil sombra neón
+        shadowColor: COLORS.neonGreen,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 4,
     },
     iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 44,
+        height: 44,
+        borderRadius: 12,
+        backgroundColor: 'rgba(255,255,255,0.05)',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 15,
         borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
         overflow: 'hidden',
     },
     logoImage: {
-        width: '70%',
-        height: '70%',
+        width: '60%',
+        height: '60%',
         resizeMode: 'contain',
     },
     initialText: {
-        fontSize: 20,
-        fontWeight: '700',
+        fontSize: 18,
+        fontWeight: '900',
+        color: COLORS.neonGreen, // Inicial en Verde Neón
     },
     infoContainer: { flex: 1 },
-    accountName: { fontSize: 17, fontWeight: '600', marginBottom: 2 },
-    username: { fontSize: 14 },
+    accountName: { 
+        fontSize: 13, 
+        fontWeight: '900', 
+        color: COLORS.textWhite, 
+        letterSpacing: 1.5,
+        marginBottom: 4 
+    },
+    username: { 
+        fontSize: 11, 
+        color: 'rgba(255,255,255,0.5)', 
+        fontWeight: '600',
+        letterSpacing: 1 
+    },
 });

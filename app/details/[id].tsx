@@ -35,16 +35,17 @@ export default function CredentialDetailsScreen() {
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
 
-    const theme = {
-        background: isDark ? '#121212' : '#F8F9FA',
-        text: isDark ? '#F8F9FA' : '#212529',
-        card: isDark ? '#1E1E1E' : '#FFFFFF',
-        subText: isDark ? '#ADB5BD' : '#6C757D',
-        border: isDark ? '#333333' : '#E9ECEF',
-        primary: '#007BFF',
-        danger: '#DC3545',
-        callButton: '#28A745',
-    };
+   const theme = {
+    background: '#040740', // Deep Midnight
+    text: '#F8F9FA',       // White
+    card: '#172140',       // Dark Slate
+    subText: 'rgba(248, 249, 250, 0.6)',
+    border: 'rgba(255, 255, 255, 0.05)',
+    primary: '#0DAC40',    // ¡Cambiamos a Verde Neón para los labels!
+    accent: '#303AF2',     // Electric Blue para botones
+    danger: '#FF0000',     // Vibrant Red
+    callButton: '#0DAC40',
+};
     
     const [credential, setCredential] = useState<any | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -182,30 +183,40 @@ export default function CredentialDetailsScreen() {
     };
 
     const renderRow = (label: string, key: EditableKeys, value: string, isPassword = false) => (
-        <View style={{ marginBottom: 15 }}>
-            <Text style={[styles.infoLabel, { color: theme.subText, marginBottom: 5 }]}>{label}</Text>
-            <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
-                    <Text style={[styles.infoValue, { color: theme.text, flex: 1 }]}>
-                        {isPassword ? (showPassword ? value : '••••••••••••') : (value || 'No asignado')}
-                    </Text>
-                    {isPassword && value && (
-                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ paddingHorizontal: 12 }}>
-                                <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color={theme.primary} />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => copyToClipboard(value)} style={{ paddingHorizontal: 12 }}>
-                                <Ionicons name="copy-outline" size={22} color={theme.primary} />
-                            </TouchableOpacity>
-                        </View>
-                    )}
-                </View>
-                <TouchableOpacity onPress={() => { setEditingField(key); setEditingLabel(fieldLabels[key]); setIsModalVisible(true); }} style={styles.innerEditBtn}>
-                    <Ionicons name="pencil" size={18} color={theme.primary} />
-                </TouchableOpacity>
+    <View style={{ marginBottom: 15 }}>
+        {/* Label en Verde Neón, pequeño y elegante */}
+        <Text style={[styles.infoLabel, { color: theme.primary, fontSize: 10, fontWeight: '900', marginBottom: 5, letterSpacing: 1.2, textTransform: 'uppercase' }]}>
+            {label}
+        </Text>
+        
+        <View style={[styles.infoRow, { backgroundColor: theme.card, borderColor: theme.border, borderRadius: 16, paddingVertical: 12 }]}>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[styles.infoValue, { color: theme.text, fontSize: 16, fontWeight: '500', flex: 1 }]}>
+                    {isPassword ? (showPassword ? value : '••••••••••••') : (value || '---')}
+                </Text>
+                
+                {isPassword && value && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ paddingHorizontal: 12 }}>
+                            <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color={theme.accent} />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => copyToClipboard(value)} style={{ paddingHorizontal: 12 }}>
+                            <Ionicons name="copy-outline" size={22} color={theme.accent} />
+                        </TouchableOpacity>
+                    </View>
+                )}
             </View>
+
+            {/* Icono de edición en Electric Blue */}
+            <TouchableOpacity 
+                onPress={() => { setEditingField(key); setEditingLabel(fieldLabels[key]); setIsModalVisible(true); }} 
+                style={[styles.innerEditBtn, { paddingLeft: 10 }]}
+            >
+                <Ionicons name="pencil" size={18} color={theme.accent} />
+            </TouchableOpacity>
         </View>
-    );
+    </View>
+);
 
     if (isLoading || !isUnlocked) return <View style={[styles.center, {backgroundColor: theme.background}]}><ActivityIndicator size="large" color={theme.primary}/></View>;
 

@@ -27,14 +27,15 @@ export default function ListScreen() {
     const colorScheme = useColorScheme();
     
     const isDark = colorScheme === 'dark';
-    const theme = {
-        background: isDark ? '#090912ff' : '#F8F9FA',
-        text: isDark ? '#F8F9FA' : '#212529',
-        card: isDark ? '#1b1e2cff' : '#FFFFFF',
-        subText: isDark ? '#ADB5BD' : '#6C757D',
-        border: isDark ? '#333333' : '#E9ECEF',
-        primary: '#007BFF',
-        input: isDark ? '#2C2C2C' : '#FFFFFF'
+    // Reemplaza el objeto theme dentro de ListScreen por este:
+const theme = {
+    background: '#040740', // Deep Midnight [cite: 2026-01-26]
+    text: '#F8F9FA',
+    card: '#172140',       // Dark Slate para las fichas
+    subText: 'rgba(255,255,255,0.6)',
+    border: 'rgba(255,255,255,0.1)',
+    primary: '#0DAC40',    // Neon Green para botones
+    input: 'rgba(255,255,255,0.05)'
     };
     
     const [allCredentials, setAllCredentials] = useState<Credential[]>([]);
@@ -85,14 +86,15 @@ export default function ListScreen() {
         return titles[filter as string] || "Cuentas";
     };
 
-    const handleAddPress = () => {
-        if (filter && filter !== 'all') {
-            router.push({ pathname: '/add', params: { type: filter } });
-        } else {
-            router.push('/add');
-        }
-    };
-
+   const handleAddPress = () => {
+    // Redirigimos a la nueva carpeta /create con el estilo moderno [cite: 2026-01-21]
+    if (filter && filter !== 'all') {
+        router.push({ pathname: '/create', params: { type: filter } });
+    } else {
+        // Si por alguna razón no hay filtro, mandamos a personal por defecto
+        router.push({ pathname: '/create', params: { type: 'personal' } });
+    }
+};
     return (
         <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
             {/* BOTÓN EN EL HEADER (Superior Derecha) */}
@@ -101,14 +103,22 @@ export default function ListScreen() {
                 headerShown: true,
                 headerStyle: { backgroundColor: theme.background },
                 headerTintColor: theme.text,
-                headerRight: () => (
-                    <TouchableOpacity 
-                        onPress={handleAddPress}
-                        style={{ marginRight: 15 }}
-                    >
-                        <Ionicons name="add-circle" size={32} color={theme.primary} />
-                    </TouchableOpacity>
-                ),
+              headerRight: () => (
+    <TouchableOpacity 
+        onPress={handleAddPress}
+        style={{ 
+            marginRight: 15,
+            // Opcional: un ligero toque de sombra para que resalte como en el Home
+            shadowColor: '#0DAC40',
+            shadowOffset: { width: 0, height: 0 },
+            shadowOpacity: 0.3,
+            shadowRadius: 5,
+        }}
+    >
+        {/* El verde neón oficial de tu búnker [cite: 2026-01-26] */}
+        <Ionicons name="add-circle" size={34} color="#0DAC40" /> 
+    </TouchableOpacity>
+),
             }} />
             
             <View style={styles.mainContainer}>

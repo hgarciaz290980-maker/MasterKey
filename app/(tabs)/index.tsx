@@ -69,7 +69,7 @@ export default function DashboardScreen() {
     useFocusEffect(
         React.useCallback(() => {
             const loadData = async () => {
-                const name = await AsyncStorage.getItem('user_alias');
+                const name = await AsyncStorage.getItem('user_name');
                 if (name) setUserName(name);
                 
                 const data = await getAllCredentials();
@@ -81,10 +81,23 @@ export default function DashboardScreen() {
     );
 
     useEffect(() => {
-        (async () => {
-            const result = await LocalAuthentication.authenticateAsync({ promptMessage: 'Acceso a Bunker-K' });
-            if (result.success) setIsAuthenticated(true);
-        })();
+        const checkAuth = async () => {
+            // 1. Revisamos si la biometría está activa en Settings
+            const storedBio = await AsyncStorage.getItem('use_bio');
+            const isBioEnabled = storedBio ? JSON.parse(storedBio) : false;
+
+            if (isBioEnabled) {
+                // Solo si está activa, pedimos autenticación
+                const result = await LocalAuthentication.authenticateAsync({ 
+                    promptMessage: 'Acceso a Bunker-K' 
+                });
+                if (result.success) setIsAuthenticated(true);
+            } else {
+                // Si está desactivada, entra directo al Dashboard
+                setIsAuthenticated(true);
+            }
+        };
+        checkAuth();
     }, []);
 
     const IntroView = ({ onComplete }: { onComplete: (name: string, id: string, bio: boolean) => void }) => {
@@ -151,17 +164,16 @@ export default function DashboardScreen() {
 
    const handleInitialSetup = async (name: string, id: string, bio: boolean) => {
         try {
-            // Guardamos los tres datos clave en la memoria del teléfono [cite: 2026-01-26]
-            await AsyncStorage.setItem('user_alias', name);
+            // Sincronizamos las llaves: 'user_name' para el alias y 'use_bio' para biometría
+            await AsyncStorage.setItem('user_name', name); 
             await AsyncStorage.setItem('user_id', id);
             await AsyncStorage.setItem('use_bio', JSON.stringify(bio));
             
-            // Actualizamos el estado para que la app reconozca que ya hay un usuario [cite: 2026-01-26]
             setUserName(name); 
             
             Alert.alert(
                 "Blindaje Activado", 
-                `Bienvenido al Búnker, ${name}. Tu territorio digital está protegido. [cite: 2026-01-15]`
+                `Bienvenido al Búnker, ${name}. Tu territorio digital está protegido.`
             );
         } catch (error) {
             Alert.alert("Error", "No se pudo inicializar el blindaje.");

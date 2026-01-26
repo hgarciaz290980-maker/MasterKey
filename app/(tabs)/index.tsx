@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'; 
 import { 
     View, Text, StyleSheet, TouchableOpacity, 
-    ScrollView, Alert, Modal, Dimensions, StatusBar
+    ScrollView, Alert, Modal, Dimensions, StatusBar, TextInput, Image
 } from 'react-native';
 import { Stack, useRouter, useNavigation, useFocusEffect } from 'expo-router'; 
 import { DrawerActions } from '@react-navigation/native';
@@ -87,7 +87,90 @@ export default function DashboardScreen() {
         })();
     }, []);
 
+    const IntroView = ({ onComplete }: { onComplete: (name: string, id: string, bio: boolean) => void }) => {
+        const [name, setName] = useState('');
+        const [id, setId] = useState('');
+        const [bioEnabled, setBioEnabled] = useState(false);
+        const isReady = name.trim().length > 1 && id.length >= 4;
+        const [showId, setShowId] = useState(false); // Nuevo: controla la visibilidad
+
+        return (
+            <View style={styles.introContainer}>
+                <ScrollView contentContainerStyle={styles.introScrollContent} showsVerticalScrollIndicator={false}>
+                    <View style={styles.logoContainer}>
+                        <Image 
+                            source={require('../../assets/images/Bunker onboarding.png')} 
+                            style={styles.logoImage}
+                            resizeMode="contain"/>
+                        <Text style={styles.logoText}>BUNKER-K</Text>
+                        <Text style={styles.sloganText}>Tu información segura y a la mano.</Text>
+                    </View>
+
+                    <View style={styles.introCard}>
+                        <Text style={styles.labelIntro}>CONFIGURACIÓN INICIAL</Text>
+                        <TextInput style={styles.introInput} placeholder="Nombre o Alias" placeholderTextColor="rgba(255,255,255,0.3)" value={name} onChangeText={setName} />
+                        <View style={styles.passwordContainer}>
+    <TextInput 
+        style={styles.idInput} 
+        placeholder="ID Numérico" 
+        placeholderTextColor="rgba(255,255,255,0.3)" 
+        value={id} 
+        onChangeText={setId} 
+        keyboardType="numeric" 
+        secureTextEntry={!showId} 
+    />
+    <TouchableOpacity style={styles.eyeIcon} onPress={() => setShowId(!showId)}>
+        <Ionicons name={showId ? "eye-off" : "eye"} size={20} color="rgba(255,255,255,0.5)" />
+    </TouchableOpacity>
+</View>
+                        
+                        <Text style={styles.idLegend}>
+                            Este ID es tu llave maestra física. Úsala si el sensor de huella no está disponible.
+                        </Text>
+
+                        <TouchableOpacity style={[styles.bioToggle, bioEnabled && styles.bioActive]} onPress={() => setBioEnabled(!bioEnabled)}>
+                            <Ionicons name="finger-print" size={20} color={bioEnabled ? COLORS.neonGreen : "#FFF"} />
+                            <Text style={styles.bioText}>USAR BIOMETRÍA</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={[styles.introButton, { opacity: isReady ? 1 : 0.5 }]} onPress={() => isReady && onComplete(name, id, bioEnabled)} disabled={!isReady}>
+                            <Text style={styles.introButtonText}>INICIAR BLINDAJE</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <View style={styles.privacySealContainer}>
+                        <Text style={styles.privacyText}>
+                            <Text style={{ fontWeight: 'bold', color: COLORS.neonGreen }}>Privacidad Absoluta: </Text>
+                            Con Bunker-k App, tu información está segura y en tus manos ya que no utiliza servidores para almacenarla. La información de tus cuentas se guarda dentro de tu teléfono en archivos cifrados y el almacenamiento en la nube solo se realiza si autorizas la sincronización con tu Drive de Google.
+                        </Text>
+                    </View>
+                </ScrollView>
+            </View>
+        );
+    };
+
+   const handleInitialSetup = async (name: string, id: string, bio: boolean) => {
+        try {
+            // Guardamos los tres datos clave en la memoria del teléfono [cite: 2026-01-26]
+            await AsyncStorage.setItem('user_alias', name);
+            await AsyncStorage.setItem('user_id', id);
+            await AsyncStorage.setItem('use_bio', JSON.stringify(bio));
+            
+            // Actualizamos el estado para que la app reconozca que ya hay un usuario [cite: 2026-01-26]
+            setUserName(name); 
+            
+            Alert.alert(
+                "Blindaje Activado", 
+                `Bienvenido al Búnker, ${name}. Tu territorio digital está protegido. [cite: 2026-01-15]`
+            );
+        } catch (error) {
+            Alert.alert("Error", "No se pudo inicializar el blindaje.");
+        }
+    };
+
     if (!isAuthenticated) return <View style={{ flex: 1, backgroundColor: COLORS.deepMidnight }} />;
+    
+    if (userName === 'Usuario' || !userName) return <IntroView onComplete={handleInitialSetup} />;
 
     return (
         <View style={{ flex: 1, backgroundColor: COLORS.deepMidnight }}>
@@ -95,21 +178,17 @@ export default function DashboardScreen() {
             <Stack.Screen options={{ headerShown: false }} />
             
             <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-                
                 <View style={styles.headerRow}>
                     <View style={{ flex: 1, paddingRight: 10 }}>
                         <Text style={styles.brandText}>Bunker-K</Text>
                         <Text style={styles.welcomeText}>Hola, {userName}</Text>
                         <Text style={styles.subWelcomeText}>
-                            Aquí tienes tu información, segura y en el momento que la necesites.
-                        </Text>
+                            Tus datos seguros y al momento.</Text>
                     </View>
-                    
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push('/notifications' as any)}>
                             <Ionicons name="notifications-outline" size={24} color={COLORS.textWhite} />
                         </TouchableOpacity>
-                        
                         <TouchableOpacity 
                             style={[styles.notificationBtn, { marginLeft: 10 }]} 
                             onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
@@ -139,7 +218,6 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
 
                 <Text style={styles.sectionTitle}>Categorías</Text>
-                
                 <View style={styles.grid}>
                     {categories.map((cat) => (
                         <TouchableOpacity key={cat.id} style={styles.catCard} onPress={() => router.push(`/list?filter=${cat.id}` as any)}>
@@ -155,10 +233,7 @@ export default function DashboardScreen() {
                 </TouchableOpacity>
             </ScrollView>
 
-            <TouchableOpacity 
-                style={styles.fab} 
-                onPress={() => setShowTypeSelector(true)}
-            >
+            <TouchableOpacity style={styles.fab} onPress={() => setShowTypeSelector(true)}>
                 <Ionicons name="add" size={35} color="#FFF" />
             </TouchableOpacity>
 
@@ -173,7 +248,6 @@ export default function DashboardScreen() {
                                     style={styles.modalItem} 
                                     onPress={() => { 
                                         setShowTypeSelector(false); 
-                                        // RUTA DE NAVEGACIÓN CORREGIDA
                                         router.push({ pathname: '/create', params: { type: cat.id } } as any); 
                                     }}
                                 >
@@ -225,5 +299,46 @@ const styles = StyleSheet.create({
     modalItemLabel: { color: COLORS.textWhite, fontSize: 11, textAlign: 'center' },
     cancelButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 30, paddingVertical: 10 },
     cancelIconCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: COLORS.vibrantRed, justifyContent: 'center', alignItems: 'center', marginRight: 8 },
-    cancelText: { color: COLORS.textWhite, fontSize: 16, fontWeight: '500', opacity: 0.8 }
+    cancelText: { color: COLORS.textWhite, fontSize: 16, fontWeight: '500', opacity: 0.8 },
+    
+    // ESTILOS INTRO RESPONSIVOS
+    introContainer: { flex: 1, backgroundColor: COLORS.deepMidnight },
+    introScrollContent: { flexGrow: 1, paddingHorizontal: '8%', paddingTop: windowHeight * 0.05, paddingBottom: 40, justifyContent: 'center' },
+    logoContainer: { alignItems: 'center', marginBottom: 15 },
+    logoImage: { width: windowWidth * 0.5, height: windowWidth * 0.3, marginBottom: 5 },
+    sloganText: { color: COLORS.textWhite, fontSize: 12, opacity: 0.6, textAlign: 'center', fontWeight: '500' },
+    introCard: { backgroundColor: COLORS.darkSlate, padding: 20, borderRadius: 25, width: '100%' },
+    labelIntro: { color: COLORS.neonGreen, fontSize: 12, fontWeight: '900', textAlign: 'center', marginBottom: 15 },
+    introInput: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 15, padding: 15, color: '#FFF', marginBottom: 12 },
+    idLegend: { color: 'rgba(255,255,255,0.4)', fontSize: 11, textAlign: 'center', marginBottom: 15 },
+    bioToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: 14, borderRadius: 15, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+    bioActive: { borderColor: COLORS.neonGreen },
+    bioText: { color: '#FFF', fontSize: 12, fontWeight: 'bold', marginLeft: 10 },
+    introButton: { backgroundColor: COLORS.electricBlue, padding: 16, borderRadius: 15, alignItems: 'center', marginTop: 15 },
+    introButtonText: { color: '#FFF', fontWeight: 'bold' },
+    privacySealContainer: { marginTop: 25 },
+    privacyText: { color: 'rgba(255,255,255,0.4)', fontSize: 10, textAlign: 'center' },
+    logoText: { 
+        color: COLORS.textWhite, 
+        fontSize: 28,           // Un tamaño más grande
+        fontWeight: '900',      // Máximo peso (Negrita muy marcada)
+        letterSpacing: 3,       // Espaciado elegante entre letras
+        marginTop: 5,           // Pegado al logo para reducir espacio
+        textAlign: 'center' 
+    },
+    passwordContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 15,
+        marginBottom: 12,
+    },
+    idInput: {
+        flex: 1,
+        padding: 15,
+        color: '#FFF',
+    },
+    eyeIcon: {
+        paddingHorizontal: 15,
+    },
 });

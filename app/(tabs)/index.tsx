@@ -9,6 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Circle, G } from 'react-native-svg';
+// @ts-ignore
+import { uploadToGoogleDrive } from '../components/googleDriveService';
 
 // IMPORTACIONES DE SALUD
 import { getAllCredentials } from '../../storage/credentials';
@@ -68,15 +70,28 @@ export default function DashboardScreen() {
 
     useFocusEffect(
         React.useCallback(() => {
-            const loadData = async () => {
+            const loadAndSync = async () => {
+                // 1. Cargar datos para la interfaz
                 const name = await AsyncStorage.getItem('user_name');
                 if (name) setUserName(name);
                 
                 const data = await getAllCredentials();
                 const newStats = calculateVaultHealth(data);
                 setStats(newStats);
+
+                // 2. Lógica de Respaldo Automático
+                const autoBackup = await AsyncStorage.getItem('auto_backup');
+                if (autoBackup === 'true' && data.length > 0) {
+                    try {
+                        // Enviamos a la nube de forma silenciosa
+                        await uploadToGoogleDrive(JSON.stringify(data));
+                        console.log("Bunker-K: Sincronización automática completada");
+                    } catch (e) {
+                        console.log("Bunker-K: Error en sincronización automática (posible falta de red)");
+                    }
+                }
             };
-            loadData();
+            loadAndSync();
         }, [])
     );
 

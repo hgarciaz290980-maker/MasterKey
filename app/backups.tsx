@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, Switch, Ac
 import { useNavigation } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 
@@ -62,7 +62,6 @@ export default function BackupsScreen() {
         setIsSyncing(true);
         try {
             const data = await getAllCredentials();
-            // El motor uploadToGoogleDrive ya maneja el cifrado previo a la subida
             const success = await uploadToGoogleDrive(JSON.stringify(data));
             if (success) {
                 const now = new Date().toLocaleString();
@@ -82,7 +81,7 @@ export default function BackupsScreen() {
             const data = await getAllCredentials();
             const fileName = `BunkerK_Backup_${new Date().getTime()}.json`;
             // @ts-ignore
-const fileUri = (FileSystem.cacheDirectory || FileSystem.documentDirectory || '') + fileName;
+            const fileUri = (FileSystem.cacheDirectory || FileSystem.documentDirectory || '') + fileName;
             
             await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(data));
             
@@ -96,25 +95,55 @@ const fileUri = (FileSystem.cacheDirectory || FileSystem.documentDirectory || ''
         }
     };
 
+    // --- CAPA DE COMPATIBILIDAD ---
+    const normalizeData = (data: any[]): any[] => {
+        const validCategories = ['fav', 'work', 'personal', 'pet', 'mobility', 'entertainment'];
+        return data.map(item => ({
+            ...item,
+            category: validCategories.includes(item.category) ? item.category : 'personal',
+            id: item.id || Date.now().toString(36) + Math.random().toString(36).substring(2),
+            reminders: item.reminders || []
+        }));
+    };
+
     const handleImport = async () => {
         try {
-            const result = await DocumentPicker.getDocumentAsync({ type: "application/json" });
+            const result = await DocumentPicker.getDocumentAsync({ 
+                type: "application/json",
+                copyToCacheDirectory: true 
+            });
+
             if (result.canceled) return;
             
-            const content = await FileSystem.readAsStringAsync(result.assets[0].uri);
-            const importedData = JSON.parse(content);
+            const fileUri = result.assets[0].uri;
+            const content = await FileSystem.readAsStringAsync(fileUri);
             
-            if (Array.isArray(importedData)) {
-                Alert.alert("Restaurar Búnker", "Esto reemplazará tus datos actuales. ¿Continuar?", [
+            if (!content) throw new Error("Archivo vacío");
+
+            let importedData = JSON.parse(content);
+            
+            // Si el archivo viene dentro de una propiedad 'credentials' (formato viejo)
+            if (importedData.credentials && Array.isArray(importedData.credentials)) {
+                importedData = importedData.credentials;
+            }
+
+            const dataToSave = Array.isArray(importedData) ? importedData : [importedData];
+            const sanitizedData = normalizeData(dataToSave);
+            
+            Alert.alert(
+                "Restaurar Búnker", 
+                `Se encontraron ${sanitizedData.length} cuentas. ¿Deseas restaurarlas?`, 
+                [
                     { text: "Cancelar", style: "cancel" },
                     { text: "Restaurar", onPress: async () => {
-                        await saveAllCredentials(importedData);
-                        Alert.alert("Éxito", "Bóveda restaurada correctamente.");
+                        await saveAllCredentials(sanitizedData);
+                        Alert.alert("Éxito", "Bóveda restaurada y actualizada correctamente.");
                     }}
-                ]);
-            }
+                ]
+            );
         } catch (e) {
-            Alert.alert("Error", "El archivo seleccionado no tiene el formato correcto de Bunker-K.");
+            console.log("--- ERROR CRÍTICO ---", e);
+            Alert.alert("Error", "No se pudo leer el archivo. Asegúrate de seleccionar un archivo .json válido.");
         }
     };
 

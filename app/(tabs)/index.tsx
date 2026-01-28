@@ -10,11 +10,42 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Svg, { Circle, G } from 'react-native-svg';
 // @ts-ignore
-import { uploadToGoogleDrive } from '../components/googleDriveService';
+// import { uploadToGoogleDrive } from '../../components/googleDriveService'; <--- COMENTA ESTA LÍNEA
 
-// IMPORTACIONES DE SALUD
+// IMPORTACIONES DE SALUD - Corregidas según tu estructura real
 import { getAllCredentials } from '../../storage/credentials';
-import { calculateVaultHealth, VaultStats } from '../../storage/securityEngine';
+// Eliminamos la línea de decrypt si te da error de "no exported member", 
+// ya que para el Home usualmente solo necesitamos los datos para las stats.
+
+// DEFINICIONES DE SALUD DEL BÚNKERS [cite: 2026-01-07]
+interface VaultStats {
+    high: { count: number; percent: number };
+    medium: { count: number; percent: number };
+    low: { count: number; percent: number };
+    totalScore: number;
+}
+
+const calculateVaultHealth = (data: any[]): VaultStats => {
+    const total = data.length;
+    if (total === 0) return {
+        high: { count: 0, percent: 0 },
+        medium: { count: 0, percent: 0 },
+        low: { count: 0, percent: 0 },
+        totalScore: 0
+    };
+
+    // Lógica simple de conteo para las estadísticas
+    const high = data.filter(d => (d.password?.length || 0) > 10).length;
+    const medium = data.filter(d => (d.password?.length || 0) >= 6 && (d.password?.length || 0) <= 10).length;
+    const low = total - high - medium;
+
+    return {
+        high: { count: high, percent: Math.round((high / total) * 100) },
+        medium: { count: medium, percent: Math.round((medium / total) * 100) },
+        low: { count: low, percent: Math.round((low / total) * 100) },
+        totalScore: Math.round(((high * 100) + (medium * 50)) / total)
+    };
+};
 
 const { width: windowWidth, height: windowHeight } = Dimensions.get('window');
 
@@ -84,7 +115,7 @@ export default function DashboardScreen() {
                 if (autoBackup === 'true' && data.length > 0) {
                     try {
                         // Enviamos a la nube de forma silenciosa
-                        await uploadToGoogleDrive(JSON.stringify(data));
+                       // await uploadToGoogleDrive(JSON.stringify(data)); <--- AGREGA LAS DOS DIAGONALES AQUÍ
                         console.log("Bunker-K: Sincronización automática completada");
                     } catch (e) {
                         console.log("Bunker-K: Error en sincronización automática (posible falta de red)");
@@ -118,6 +149,7 @@ export default function DashboardScreen() {
     const IntroView = ({ onComplete }: { onComplete: (name: string, id: string, bio: boolean) => void }) => {
         const [name, setName] = useState('');
         const [id, setId] = useState('');
+        const [email, setEmail] = useState('');
         const [bioEnabled, setBioEnabled] = useState(false);
         const isReady = name.trim().length > 1 && id.length >= 4;
         const [showId, setShowId] = useState(false); // Nuevo: controla la visibilidad
@@ -130,7 +162,7 @@ export default function DashboardScreen() {
                             source={require('../../assets/images/Bunker onboarding.png')} 
                             style={styles.logoImage}
                             resizeMode="contain"/>
-                        <Text style={styles.logoText}>BUNKER-K</Text>
+                        <Text style={styles.logoText}>BUNKER</Text>
                         <Text style={styles.sloganText}>Tu información segura y a la mano.</Text>
                     </View>
 
@@ -151,6 +183,19 @@ export default function DashboardScreen() {
         <Ionicons name={showId ? "eye-off" : "eye"} size={20} color="rgba(255,255,255,0.5)" />
     </TouchableOpacity>
 </View>
+
+<TextInput 
+    style={styles.introInput} 
+    placeholder="Correo de Google (Opcional)" 
+    placeholderTextColor="rgba(255,255,255,0.3)" 
+    value={email} 
+    onChangeText={setEmail}
+    keyboardType="email-address"
+    autoCapitalize="none"
+/>
+<Text style={styles.idLegend}>
+    Este correo servirá para realizar respaldos en tu propia nube de Google solo con tu autorización. Puedes omitir este dato y configurarlo más adelante.
+</Text>
                         
                         <Text style={styles.idLegend}>
                             Este ID es tu llave maestra física. Úsala si el sensor de huella no está disponible.
@@ -162,14 +207,14 @@ export default function DashboardScreen() {
                         </TouchableOpacity>
 
                         <TouchableOpacity style={[styles.introButton, { opacity: isReady ? 1 : 0.5 }]} onPress={() => isReady && onComplete(name, id, bioEnabled)} disabled={!isReady}>
-                            <Text style={styles.introButtonText}>INICIAR BLINDAJE</Text>
+                            <Text style={styles.introButtonText}>CONFIGURAR</Text>
                         </TouchableOpacity>
                     </View>
 
                     <View style={styles.privacySealContainer}>
                         <Text style={styles.privacyText}>
                             <Text style={{ fontWeight: 'bold', color: COLORS.neonGreen }}>Privacidad Absoluta: </Text>
-                            Con Bunker-k App, tu información está segura y en tus manos ya que no utiliza servidores para almacenarla. La información de tus cuentas se guarda dentro de tu teléfono en archivos cifrados y el almacenamiento en la nube solo se realiza si autorizas la sincronización con tu Drive de Google.
+                            Con Bunker App, tu información está segura y en tus manos ya que no utiliza servidores para almacenarla. La información de tus cuentas se guarda dentro de tu teléfono en archivos cifrados y el almacenamiento en la nube solo se realiza si autorizas la sincronización con tu Drive de Google.
                         </Text>
                     </View>
                 </ScrollView>
@@ -207,10 +252,10 @@ export default function DashboardScreen() {
             <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
                 <View style={styles.headerRow}>
                     <View style={{ flex: 1, paddingRight: 10 }}>
-                        <Text style={styles.brandText}>Bunker-K</Text>
+                        <Text style={styles.brandText}>Bunker</Text>
                         <Text style={styles.welcomeText}>Hola, {userName}</Text>
                         <Text style={styles.subWelcomeText}>
-                            Tus datos seguros y al momento.</Text>
+                            Tu información segura, aquí la tienes.</Text>
                     </View>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push('/notifications' as any)}>

@@ -6,11 +6,10 @@ import {
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-// --- SERVICIOS Y COMPONENTES ---
-import { createCredential, getAllCredentials } from '../../storage/credentials';
-// @ts-ignore
-import { uploadToGoogleDrive } from '../components/googleDriveService';
-import SpecialCategoryForm from '../components/SpecialCategoryForm';
+// --- SERVICIOS Y COMPONENTES (Rutas corregidas quirúrgicamente) ---
+import { createCredential, getAllCredentials } from '../storage/credentials';
+import { uploadToGoogleDrive } from './components/googleDriveService'; 
+import SpecialCategoryForm from './components/SpecialCategoryForm';
 
 const COLORS = {
     deepMidnight: '#040740',
@@ -24,7 +23,7 @@ export default function CreateScreen() {
     const router = useRouter();
     const { type } = useLocalSearchParams<{ type: string }>();
     
-    // ESTADOS COMPLETOS (Fusión de lógica anterior [cite: 2026-01-26])
+    // ESTADOS COMPLETOS (Mantenidos según tu lógica original)
     const [accountName, setAccountName] = useState('');
     const [alias, setAlias] = useState('');
     const [username, setUsername] = useState('');
@@ -66,7 +65,7 @@ export default function CreateScreen() {
             const allData = await getAllCredentials();
             uploadToGoogleDrive(JSON.stringify(allData));
 
-            Alert.alert("Bóveda Actualizada", "Información blindada con éxito. [cite: 2026-01-15]");
+            Alert.alert("Bóveda Actualizada", "Información blindada con éxito.");
             router.back(); 
         } catch (error) { Alert.alert("Error", "No se pudo guardar"); }
     };
@@ -110,7 +109,7 @@ export default function CreateScreen() {
                         </>
                     )}
 
-                    {/* FORMULARIOS ESPECIALES [cite: 2026-01-21] */}
+                    {/* FORMULARIOS ESPECIALES */}
                     <SpecialCategoryForm 
                         category={category} 
                         formData={specialData} 
@@ -118,7 +117,7 @@ export default function CreateScreen() {
                         isDark={true} 
                     />
 
-                    {/* CAMPOS DE CREDENCIALES (Ocultos para mascota/auto [cite: 2026-01-26]) */}
+                    {/* CAMPOS DE CREDENCIALES (Ocultos para mascota/auto) */}
                     {category !== 'pet' && category !== 'mobility' && (
                         <>
                             <Text style={styles.labelNombre}>USUARIO / EMAIL *</Text>
@@ -162,7 +161,7 @@ export default function CreateScreen() {
                         </>
                     )}
 
-                    {/* NOTAS (Siempre visible y grande [cite: 2026-01-26]) */}
+                    {/* NOTAS */}
                     <Text style={styles.labelNombre}>NOTAS ADICIONALES</Text>
                     <TextInput 
                         style={[styles.input, styles.textArea]} 
@@ -190,7 +189,7 @@ const styles = StyleSheet.create({
     headerTitle: { color: '#FFF', fontSize: 14, fontWeight: '900', marginLeft: 15, letterSpacing: 2 },
     card: { backgroundColor: COLORS.darkSlate, padding: 25, borderRadius: 30, marginBottom: 50 },
     input: { backgroundColor: 'rgba(255,255,255,0.05)', color: '#FFF', padding: 15, borderRadius: 15, fontSize: 16 },
-    textArea: { height: 120, textAlignVertical: 'top' }, // Tamaño grande para notas [cite: 2026-01-26]
+    textArea: { height: 120, textAlignVertical: 'top' }, 
     passwordHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     generateText: { color: COLORS.electricBlue, fontSize: 10, fontWeight: '900', marginTop: 15, letterSpacing: 1 },
     passwordContainer: { flexDirection: 'row', alignItems: 'center' },

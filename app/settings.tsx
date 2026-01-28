@@ -41,16 +41,21 @@ export default function SettingsScreen() {
     const [isBioActive, setIsBioActive] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [showPremiumModal, setShowPremiumModal] = useState(false);
+    const [email, setEmail] = useState("");
+    const [showId, setShowId] = useState(false);
+    
 
     // 🔄 CARGAR DATOS AL ENTRAR
     useEffect(() => {
         const loadSettings = async () => {
             const storedName = await AsyncStorage.getItem('user_name');
             const storedID = await AsyncStorage.getItem('user_id');
+            const storedEmail = await AsyncStorage.getItem('user_email');
             const storedBio = await AsyncStorage.getItem('use_bio');
             
             if (storedName) setAlias(storedName);
             if (storedID) setAccessID(storedID);
+            if (storedEmail) setEmail(storedEmail);
             if (storedBio) setIsBioActive(JSON.parse(storedBio));
         };
         loadSettings();
@@ -61,6 +66,7 @@ export default function SettingsScreen() {
         try {
             await AsyncStorage.setItem('user_name', alias);
             await AsyncStorage.setItem('user_id', accessID);
+            await AsyncStorage.setItem('user_email', email);
             await AsyncStorage.setItem('use_bio', JSON.stringify(isBioActive));
             
             // Regresamos al menú de hamburguesa
@@ -107,17 +113,43 @@ export default function SettingsScreen() {
                         <Ionicons name="keypad-outline" size={28} color={COLORS.neonGreen} />
                         <View style={{ flex: 1, marginLeft: 12 }}>
                             <Text style={styles.externalLabel}>ID de Acceso (Respaldo)</Text>
-                            <View style={styles.inputBox}>
+                            <View style={[styles.inputBox, { flexDirection: 'row', alignItems: 'center' }]}>
                                 <TextInput 
-                                    style={styles.inputStyle}
+                                    style={[styles.inputStyle, { flex: 1 }]}
                                     value={accessID}
                                     onChangeText={handleIDChange}
                                     placeholder="ID Numérico"
                                     placeholderTextColor="rgba(255,255,255,0.2)"
                                     keyboardType="numeric"
-                                    secureTextEntry
+                                    secureTextEntry={!showId}
+                                />
+                                <TouchableOpacity onPress={() => setShowId(!showId)}>
+                                    <Ionicons name={showId ? "eye-off" : "eye"} size={20} color="rgba(255,255,255,0.5)" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+
+                    <View style={styles.thinLine} />
+
+                    <View style={styles.profileItem}>
+                        <Ionicons name="logo-google" size={24} color={COLORS.electricBlue} />
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                            <Text style={styles.externalLabel}>Correo para Respaldos</Text>
+                            <View style={styles.inputBox}>
+                                <TextInput 
+                                    style={styles.inputStyle}
+                                    value={email}
+                                    onChangeText={setEmail}
+                                    placeholder="vincular@gmail.com"
+                                    placeholderTextColor="rgba(255,255,255,0.2)"
+                                    keyboardType="email-address"
+                                    autoCapitalize="none"
                                 />
                             </View>
+                            <Text style={{ color: 'rgba(255,255,255,0.3)', fontSize: 9, marginTop: 5, lineHeight: 12 }}>
+                                Este correo servirá para realizar respaldos en tu propia nube de Google solo con tu autorización.
+                            </Text>
                         </View>
                     </View>
                 </View>

@@ -10,7 +10,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import * as Clipboard from 'expo-clipboard';
 
 import { getCredentialById, updateCredential, deleteCredential, Reminder } from '../../storage/credentials'; 
-import EditCredentialModal from '../components/EditCredentialModal'; 
+import EditCredentialModal from '../components/EditCredentialModal';
 
 const { height, width } = Dimensions.get('window');
 

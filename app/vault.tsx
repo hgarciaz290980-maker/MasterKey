@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, StatusBar, Modal, FlatList } from 'react-native';
+import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { getAllCredentials } from '../storage/credentials';
 import Svg, { Circle, G } from 'react-native-svg';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const COLORS = {
     deepMidnight: '#040740',
@@ -36,12 +36,8 @@ export default function VaultScreen() {
     const router = useRouter();
     const [stats, setStats] = useState({
         total: 0,
-        fav: 0,
-        personal: 0,
-        work: 0,
-        pet: 0,
-        mobility: 0,
-        entertainment: 0,
+        fav: 0, personal: 0, work: 0, pet: 0, mobility: 0, entertainment: 0,
+        uncategorized: 0, // Nuevo contador
         highRisk: [] as any[],
         mediumRisk: [] as any[],
         secure: [] as any[],
@@ -49,38 +45,49 @@ export default function VaultScreen() {
         totalCredentials: 0
     });
 
-    useEffect(() => {
-        const loadVaultData = async () => {
-            const allItems: any[] = await getAllCredentials();
-            
-            // Filtrado por categorías para el resumen
-            const fav = allItems.filter(i => i.type === 'fav').length;
-            const personal = allItems.filter(i => i.type === 'personal').length;
-            const work = allItems.filter(i => i.type === 'work').length;
-            const pet = allItems.filter(i => i.type === 'pet').length;
-            const mobility = allItems.filter(i => i.type === 'mobility').length;
-            const entertainment = allItems.filter(i => i.type === 'entertainment').length;
+    const [selectedRisk, setSelectedRisk] = useState<{title: string, color: string, items: any[]} | null>(null);
 
-            // Filtrado de riesgos (solo para los que tienen password)
-            const credentials = allItems.filter(i => i.password);
-            const highRisk = credentials.filter(c => (c.password?.length || 0) < 6);
-            const mediumRisk = credentials.filter(c => (c.password?.length || 0) >= 6 && (c.password?.length || 0) <= 10);
-            const secure = credentials.filter(c => (c.password?.length || 0) > 10);
+    useFocusEffect(
+        React.useCallback(() => {
+            const loadVaultData = async () => {
+                const allItems: any[] = await getAllCredentials();
+                
+                const fav = allItems.filter(i => i.category === 'fav').length;
+                const personal = allItems.filter(i => i.category === 'personal').length;
+                const work = allItems.filter(i => i.category === 'work').length;
+                const pet = allItems.filter(i => i.category === 'pet').length;
+                const mobility = allItems.filter(i => i.category === 'mobility').length;
+                const entertainment = allItems.filter(i => i.category === 'entertainment').length;
 
-            const score = credentials.length > 0 
-                ? Math.round(((secure.length * 100) + (mediumRisk.length * 50)) / credentials.length)
-                : 0;
+                // Cálculo de cuentas sin categorizar
+                const categorizedCount = fav + personal + work + pet + mobility + entertainment;
+                const uncategorized = allItems.length - categorizedCount;
 
-            setStats({
-                total: allItems.length,
-                fav, personal, work, pet, mobility, entertainment,
-                highRisk, mediumRisk, secure,
-                totalScore: score,
-                totalCredentials: credentials.length
-            });
-        };
-        loadVaultData();
-    }, []);
+                const credentials = allItems.filter(i => 
+                    i.password && i.password !== 'N/A' && 
+                    i.category !== 'pet' && i.category !== 'mobility'
+                );
+
+                const highRisk = credentials.filter(c => (c.password?.length || 0) < 6);
+                const mediumRisk = credentials.filter(c => (c.password?.length || 0) >= 6 && (c.password?.length || 0) <= 10);
+                const secure = credentials.filter(c => (c.password?.length || 0) > 10);
+
+                const score = credentials.length > 0 
+                    ? Math.round(((secure.length * 100) + (mediumRisk.length * 50)) / credentials.length)
+                    : 0;
+
+                setStats({
+                    total: allItems.length,
+                    fav, personal, work, pet, mobility, entertainment,
+                    uncategorized,
+                    highRisk, mediumRisk, secure,
+                    totalScore: score,
+                    totalCredentials: credentials.length
+                });
+            };
+            loadVaultData();
+        }, [])
+    );
 
     return (
         <View style={styles.mainContainer}>
@@ -99,16 +106,15 @@ export default function VaultScreen() {
             }} />
             
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-                
                 <View style={styles.healthCenter}>
                     <Text style={styles.healthTitle}>Seguridad de tus Cuentas</Text>
                     <Text style={styles.healthSubtitle}>Estado General</Text>
                     
                     <View style={styles.canvasContainer}>
                         <Svg height={width * 0.45} width={width * 0.45} viewBox="0 0 120 120">
-                            <HealthRing size={120} strokeWidth={8} percentage={stats.secure.length > 0 ? (stats.secure.length / stats.totalCredentials) * 100 : 0} color={COLORS.neonGreen} offset={0} />
-                            <HealthRing size={120} strokeWidth={8} percentage={stats.mediumRisk.length > 0 ? (stats.mediumRisk.length / stats.totalCredentials) * 100 : 0} color={COLORS.electricPurple} offset={12} />
-                            <HealthRing size={120} strokeWidth={8} percentage={stats.highRisk.length > 0 ? (stats.highRisk.length / stats.totalCredentials) * 100 : 0} color={COLORS.vibrantRed} offset={24} />
+                            <HealthRing size={120} strokeWidth={8} percentage={stats.totalCredentials > 0 ? (stats.secure.length / stats.totalCredentials) * 100 : 0} color={COLORS.neonGreen} offset={0} />
+                            <HealthRing size={120} strokeWidth={8} percentage={stats.totalCredentials > 0 ? (stats.mediumRisk.length / stats.totalCredentials) * 100 : 0} color={COLORS.electricPurple} offset={12} />
+                            <HealthRing size={120} strokeWidth={8} percentage={stats.totalCredentials > 0 ? (stats.highRisk.length / stats.totalCredentials) * 100 : 0} color={COLORS.vibrantRed} offset={24} />
                         </Svg>
                         <View style={styles.scoreAbsolute}>
                             <Text style={styles.scoreText}>{stats.totalScore}%</Text>
@@ -116,41 +122,83 @@ export default function VaultScreen() {
                     </View>
                 </View>
 
-                {/* RESUMEN DE LAS 6 CATEGORÍAS */}
                 <View style={styles.summaryCard}>
                     <Text style={styles.summaryText}>
-                        Tienes <Text style={{fontWeight:'bold', color: COLORS.neonGreen}}>{stats.total}</Text> datos seguros y a la mano en Bunker.
+                        Tienes <Text style={{fontWeight:'bold', color: COLORS.neonGreen}}>{stats.total}</Text> datos seguros.
                     </Text>
                     <View style={styles.divider} />
                     
                     <View style={styles.statsGrid}>
-                        <StatItem icon="star" label="Recurrentes" count={stats.fav} />
-                        <StatItem icon="person" label="Personal" count={stats.personal} />
-                        <StatItem icon="briefcase" label="Trabajo" count={stats.work} />
+                        <StatItem icon="star" label="Recurrentes" count={stats.fav} color="#FFC107" />
+                        <StatItem icon="person" label="Personal" count={stats.personal} color={COLORS.neonGreen} />
+                        <StatItem icon="briefcase" label="Trabajo" count={stats.work} color={COLORS.electricPurple} />
                     </View>
                     <View style={[styles.statsGrid, {marginTop: 20}]}>
-                        <StatItem icon="paw" label="Mascotas" count={stats.pet} />
-                        <StatItem icon="car-sport" label="Movilidad" count={stats.mobility} />
-                        <StatItem icon="play-circle" label="Entretenimiento" count={stats.entertainment} />
+                        <StatItem icon="paw" label="Mascotas" count={stats.pet} color="#fd7e14" />
+                        <StatItem icon="car-sport" label="Movilidad" count={stats.mobility} color="#dc3545" />
+                        <StatItem icon="play-circle" label="Entretenimiento" count={stats.entertainment} color="#e83e8c" />
                     </View>
+
+                    {/* RECUADRO DE CUENTAS SIN CATEGORIZAR */}
+                    {stats.uncategorized > 0 && (
+                        <View style={styles.unorganizedBanner}>
+                            <Ionicons name="folder-open-outline" size={16} color="rgba(255,255,255,0.5)" />
+                            <Text style={styles.unorganizedText}>
+                                Tienes <Text style={{color: '#FFF', fontWeight: 'bold'}}>{stats.uncategorized}</Text> cuentas sin categorizar.
+                            </Text>
+                        </View>
+                    )}
                 </View>
 
                 <Text style={styles.sectionLabel}>ANÁLISIS DE FORTALEZA</Text>
                 
-                <RiskSection title="En Riesgo" color={COLORS.vibrantRed} count={stats.highRisk.length} items={stats.highRisk} icon="alert-circle" />
-                <RiskSection title="Media" color={COLORS.electricPurple} count={stats.mediumRisk.length} items={stats.mediumRisk} icon="shield-half" />
-                <RiskSection title="Seguras" color={COLORS.neonGreen} count={stats.secure.length} items={stats.secure} icon="shield-checkmark" />
+                <TouchableOpacity onPress={() => setSelectedRisk({title: 'Cuentas en Riesgo', color: COLORS.vibrantRed, items: stats.highRisk})}>
+                    <RiskSection title="En Riesgo" color={COLORS.vibrantRed} count={stats.highRisk.length} items={stats.highRisk} icon="alert-circle" />
+                </TouchableOpacity>
 
+                <TouchableOpacity onPress={() => setSelectedRisk({title: 'Seguridad Media', color: COLORS.electricPurple, items: stats.mediumRisk})}>
+                    <RiskSection title="Media" color={COLORS.electricPurple} count={stats.mediumRisk.length} items={stats.mediumRisk} icon="shield-half" />
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => setSelectedRisk({title: 'Cuentas Seguras', color: COLORS.neonGreen, items: stats.secure})}>
+                    <RiskSection title="Seguras" color={COLORS.neonGreen} count={stats.secure.length} items={stats.secure} icon="shield-checkmark" />
+                </TouchableOpacity>
             </ScrollView>
+
+            <Modal visible={!!selectedRisk} animationType="slide" transparent>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, {color: selectedRisk?.color}]}>{selectedRisk?.title}</Text>
+                            <TouchableOpacity onPress={() => setSelectedRisk(null)} style={styles.closeBtn}>
+                                <Ionicons name="close" size={24} color="#FFF" />
+                            </TouchableOpacity>
+                        </View>
+                        <FlatList 
+                            data={selectedRisk?.items}
+                            keyExtractor={(item) => item.id}
+                            renderItem={({item}) => (
+                                <View style={styles.detailItem}>
+                                    <Ionicons name="key-outline" size={18} color={selectedRisk?.color} style={{marginRight: 12}} />
+                                    <Text style={styles.detailText}>{item.accountName}</Text>
+                                </View>
+                            )}
+                            contentContainerStyle={{paddingBottom: 40}}
+                        />
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
 
-const StatItem = ({ icon, label, count }: any) => (
+const StatItem = ({ icon, label, count, color }: any) => (
     <View style={{alignItems:'center', width: '33.3%'}}>
-        <Ionicons name={icon} size={20} color={COLORS.electricBlue} />
-        <Text style={{color:'#FFF', fontWeight:'bold', fontSize: 16, marginTop: 2}}>{count}</Text>
-        <Text style={{color:'rgba(255,255,255,0.4)', fontSize: 9, textTransform: 'uppercase', textAlign: 'center'}}>{label}</Text>
+        <View style={{ backgroundColor: color + '15', padding: 8, borderRadius: 12, marginBottom: 4 }}>
+            <Ionicons name={icon} size={18} color={color} />
+        </View>
+        <Text style={{color:'#FFF', fontWeight:'bold', fontSize: 16}}>{count}</Text>
+        <Text style={{color:'rgba(255,255,255,0.4)', fontSize: 8, textTransform: 'uppercase', textAlign: 'center', fontWeight: '600'}}>{label}</Text>
     </View>
 );
 
@@ -159,15 +207,16 @@ const RiskSection = ({ title, color, count, items, icon }: any) => (
         <View style={styles.rowStart}>
             <Ionicons name={icon} size={22} color={color} />
             <Text style={[styles.riskTitle, { color }]}>{title} ({count})</Text>
+            <Ionicons name="chevron-forward" size={16} color="rgba(255,255,255,0.2)" style={{marginLeft: 'auto'}} />
         </View>
         {items.length === 0 ? (
             <Text style={[styles.itemRef, { fontStyle: 'italic', fontSize: 11 }]}>Sin elementos críticos</Text>
         ) : (
             items.slice(0, 3).map((item: any, index: number) => (
-                <Text key={index} style={styles.itemRef}>• {item.service || 'Registro'}</Text>
+                <Text key={index} style={styles.itemRef}>• {item.accountName || 'Registro'}</Text>
             ))
         )}
-        {count > 3 && <Text style={styles.moreText}>+{count - 3} más</Text>}
+        {count > 3 && <Text style={styles.moreText}>Ver los {count} elementos...</Text>}
     </View>
 );
 
@@ -184,10 +233,30 @@ const styles = StyleSheet.create({
     summaryText: { color: '#FFF', fontSize: 15, textAlign: 'center', marginBottom: 15 },
     divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginBottom: 20 },
     statsGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+    unorganizedBanner: { 
+        backgroundColor: 'rgba(255,255,255,0.03)', 
+        marginTop: 25, 
+        padding: 12, 
+        borderRadius: 15, 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.05)',
+        borderStyle: 'dashed'
+    },
+    unorganizedText: { color: 'rgba(255,255,255,0.5)', fontSize: 11, marginLeft: 10 },
     rowStart: { flexDirection: 'row', alignItems: 'center' },
     sectionLabel: { color: 'rgba(255,255,255,0.4)', fontSize: 11, fontWeight: '900', marginBottom: 15, letterSpacing: 1.5 },
     riskCard: { backgroundColor: COLORS.darkSlate, borderRadius: 18, padding: 18, marginBottom: 15 },
     riskTitle: { fontSize: 16, fontWeight: 'bold', marginLeft: 12 },
     itemRef: { color: 'rgba(255,255,255,0.6)', fontSize: 13, marginTop: 10, marginLeft: 34 },
-    moreText: { color: COLORS.electricBlue, fontSize: 11, marginTop: 8, marginLeft: 34, fontWeight: 'bold' }
+    moreText: { color: COLORS.electricBlue, fontSize: 11, marginTop: 12, marginLeft: 34, fontWeight: 'bold' },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: COLORS.darkSlate, borderTopLeftRadius: 30, borderTopRightRadius: 30, padding: 25, height: height * 0.7 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 25 },
+    modalTitle: { fontSize: 18, fontWeight: 'bold' },
+    closeBtn: { backgroundColor: 'rgba(255,255,255,0.1)', padding: 8, borderRadius: 12 },
+    detailItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+    detailText: { color: '#FFF', fontSize: 16, fontWeight: '500' }
 });

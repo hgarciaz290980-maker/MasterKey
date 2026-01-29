@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
-// --- CONFIGURACIÓN OFICIAL (Mantenida exactamente como la tenías) ---
+// --- CONFIGURACIÓN OFICIAL ---
 GoogleSignin.configure({
   webClientId: '619201497268-rvpm6438n7773l4ir71quoctnemc23st.apps.googleusercontent.com',
   offlineAccess: true,
@@ -11,7 +11,6 @@ GoogleSignin.configure({
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3/files';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3/files';
 
-// --- FUNCIONES DE IDENTIDAD (Del archivo de services) ---
 export const authenticateWithGoogle = async (): Promise<boolean> => {
   try {
     await GoogleSignin.hasPlayServices();
@@ -52,10 +51,9 @@ export const logoutFromGoogle = async () => {
     }
 };
 
-// --- FUNCIÓN DE SUBIDA INTELIGENTE (Combinando ambas lógicas) ---
+// --- FUNCIÓN DE SUBIDA CON NOMBRE DINÁMICO (Día_Mes_Año) ---
 export const uploadToGoogleDrive = async (jsonData: string): Promise<boolean> => {
   try {
-    // Obtenemos token actualizado
     const tokens = await GoogleSignin.getTokens();
     const token = tokens.accessToken;
 
@@ -64,9 +62,18 @@ export const uploadToGoogleDrive = async (jsonData: string): Promise<boolean> =>
         return false;
     }
 
-    // 1. Buscamos si ya existe el archivo (Lógica del archivo 1)
+    // 1. GENERAR NOMBRE DINÁMICO CON FECHA REAL
+    const hoy = new Date();
+    const dia = String(hoy.getDate()).padStart(2, '0');
+    const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+    const año = hoy.getFullYear();
+    
+    // Estructura: Bunker_data_29_01_2026.bunker
+    const dynamicFileName = `Bunker_data_${dia}_${mes}_${año}.bunker`;
+
+    // 2. Buscamos si ya existe UN ARCHIVO CON ESE MISMO NOMBRE HOY
     const searchResponse = await fetch(
-        `${DRIVE_API_URL}?q=name='BunkerK_Backup.json' and trashed=false`,
+        `${DRIVE_API_URL}?q=name='${dynamicFileName}' and trashed=false`,
         {
             method: 'GET',
             headers: { Authorization: `Bearer ${token}` }
@@ -76,19 +83,18 @@ export const uploadToGoogleDrive = async (jsonData: string): Promise<boolean> =>
     const existingFile = searchResult.files && searchResult.files.length > 0 ? searchResult.files[0] : null;
 
     const metadata = {
-        name: 'BunkerK_Backup.json',
-        mimeType: 'application/json',
+        name: dynamicFileName,
+        mimeType: 'application/octet-stream', // Cambiado a octet-stream para archivos .bunker
     };
 
-    // Usamos el formato Multipart (Lógica del archivo 2)
     const boundary = 'foo_bar_baz';
     const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
-                 `--${boundary}\r\nContent-Type: application/json\r\n\r\n${jsonData}\r\n` +
+                 `--${boundary}\r\nContent-Type: application/octet-stream\r\n\r\n${jsonData}\r\n` +
                  `--${boundary}--`;
 
     let response;
     if (existingFile) {
-        // Si existe, actualizamos con PATCH
+        // Si ya hiciste un respaldo HOY, lo actualiza
         response = await fetch(`${UPLOAD_API_URL}/${existingFile.id}?uploadType=multipart`, {
             method: 'PATCH',
             headers: { 
@@ -98,7 +104,7 @@ export const uploadToGoogleDrive = async (jsonData: string): Promise<boolean> =>
             body: body,
         });
     } else {
-        // Si no existe, creamos con POST
+        // Si es el primero del día, crea uno NUEVO
         response = await fetch(`${UPLOAD_API_URL}?uploadType=multipart`, {
             method: 'POST',
             headers: { 
@@ -110,7 +116,7 @@ export const uploadToGoogleDrive = async (jsonData: string): Promise<boolean> =>
     }
 
     if (response.ok) {
-        console.log("Respaldo en Drive exitoso");
+        console.log(`Respaldo exitoso: ${dynamicFileName}`);
         return true;
     } else {
         const errorData = await response.json();

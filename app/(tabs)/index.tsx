@@ -281,7 +281,8 @@ export default function DashboardScreen() {
                             <View style={styles.scoreContainer}><Text style={styles.scoreText}>{stats.totalScore}%</Text></View>
                         </View>
                         <View style={{ marginLeft: 20, flex: 1 }}>
-                            <Text style={styles.widgetTitle}>Salud Bóveda</Text>
+                            <Text style={styles.widgetTitle}>Nivel de seguridad</Text>
+                            <Text style={styles.healthSubtitle}>de tus contraseñas</Text>
                             <Text style={styles.statusText}><Ionicons name="shield-checkmark" color={COLORS.neonGreen} /> Fuertes ({stats.high.count})</Text>
                             <Text style={styles.statusText}><Ionicons name="alert-circle" color={COLORS.electricPurple} /> Medias ({stats.medium.count})</Text>
                             <Text style={styles.statusText}><Ionicons name="warning" color={COLORS.vibrantRed} /> Riesgo ({stats.low.count})</Text>
@@ -353,7 +354,14 @@ const styles = StyleSheet.create({
     canvasContainer: { justifyContent: 'center', alignItems: 'center' },
     scoreContainer: { position: 'absolute' },
     scoreText: { color: COLORS.textWhite, fontSize: 20, fontWeight: 'bold' },
-    widgetTitle: { color: COLORS.textWhite, fontSize: 18, fontWeight: '700', marginBottom: 5 },
+    widgetTitle: { color: COLORS.textWhite, fontSize: 18, fontWeight: '700', marginBottom: 2 },
+    healthSubtitle: { 
+        color: 'rgba(248, 249, 250, 0.5)', 
+        fontSize: 12, 
+        fontWeight: '500', 
+        marginBottom: 10,
+        letterSpacing: 0.3 
+    },
     statusText: { color: COLORS.textWhite, fontSize: 13, opacity: 0.8, marginBottom: 4 },
     sectionTitle: { color: COLORS.textWhite, fontSize: 12, fontWeight: 'bold', textTransform: 'uppercase', marginBottom: 15, opacity: 0.5 },
     grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },

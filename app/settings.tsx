@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Switch, SafeAreaView, Platform, Modal, StatusBar, Alert } from 'react-native';
-import { useNavigation, useRouter } from 'expo-router'; // Añadimos useRouter
+import { useNavigation, useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
@@ -15,7 +15,8 @@ const COLORS = {
     electricBlue: '#303AF2',
     neonGreen: '#0DAC40',
     textWhite: '#F8F9FA',
-    vibrantRed: '#FF0000'
+    vibrantRed: '#FF0000',
+    vibrantYellow: '#FFD700'
 };
 
 const SectionHeader = ({ title }: { title: string }) => {
@@ -35,11 +36,12 @@ const SectionHeader = ({ title }: { title: string }) => {
 };
 
 export default function SettingsScreen() {
-    const router = useRouter(); // Hook para la navegación de regreso
+    const router = useRouter();
     const [alias, setAlias] = useState("");
     const [accessID, setAccessID] = useState("");
     const [isBioActive, setIsBioActive] = useState(false);
     const [isDarkMode, setIsDarkMode] = useState(true);
+    const [language, setLanguage] = useState("Español");
     const [showPremiumModal, setShowPremiumModal] = useState(false);
     const [email, setEmail] = useState("");
     const [showId, setShowId] = useState(false);
@@ -52,11 +54,13 @@ export default function SettingsScreen() {
             const storedID = await AsyncStorage.getItem('user_id');
             const storedEmail = await AsyncStorage.getItem('user_email');
             const storedBio = await AsyncStorage.getItem('use_bio');
+            const storedLang = await AsyncStorage.getItem('user_lang');
             
             if (storedName) setAlias(storedName);
             if (storedID) setAccessID(storedID);
             if (storedEmail) setEmail(storedEmail);
             if (storedBio) setIsBioActive(JSON.parse(storedBio));
+            if (storedLang) setLanguage(storedLang);
         };
         loadSettings();
     }, []);
@@ -68,6 +72,7 @@ export default function SettingsScreen() {
             await AsyncStorage.setItem('user_id', accessID);
             await AsyncStorage.setItem('user_email', email);
             await AsyncStorage.setItem('use_bio', JSON.stringify(isBioActive));
+            await AsyncStorage.setItem('user_lang', language);
             
             // Regresamos al menú de hamburguesa
             router.back();
@@ -76,9 +81,9 @@ export default function SettingsScreen() {
         }
     };
 
-    const handleNameChange = (newName: string) => setAlias(newName);
-    const handleIDChange = (newID: string) => setAccessID(newID);
-    const toggleBiometrics = (value: boolean) => setIsBioActive(value);
+    const toggleLanguage = () => {
+        setLanguage(prev => prev === "Español" ? "English" : "Español");
+    };
 
     const appVersion = Constants.expoConfig?.version || "1.0.0";
 
@@ -99,7 +104,7 @@ export default function SettingsScreen() {
                                 <TextInput 
                                     style={styles.inputStyle}
                                     value={alias}
-                                    onChangeText={handleNameChange}
+                                    onChangeText={setAlias}
                                     placeholder="Tu nombre aquí..."
                                     placeholderTextColor="rgba(255,255,255,0.2)"
                                 />
@@ -117,7 +122,7 @@ export default function SettingsScreen() {
                                 <TextInput 
                                     style={[styles.inputStyle, { flex: 1 }]}
                                     value={accessID}
-                                    onChangeText={handleIDChange}
+                                    onChangeText={setAccessID}
                                     placeholder="ID Numérico"
                                     placeholderTextColor="rgba(255,255,255,0.2)"
                                     keyboardType="numeric"
@@ -164,7 +169,7 @@ export default function SettingsScreen() {
                         </View>
                         <Switch 
                             value={isBioActive} 
-                            onValueChange={toggleBiometrics}
+                            onValueChange={setIsBioActive}
                             trackColor={{ false: '#333', true: COLORS.neonGreen }}
                         />
                     </View>
@@ -186,7 +191,7 @@ export default function SettingsScreen() {
                     <MaterialCommunityIcons name="crown-outline" size={28} color="#FFD700" />
                 </TouchableOpacity>
 
-                <Text style={styles.sectionLabel}>APARIENCIA</Text>
+                <Text style={styles.sectionLabel}>APARIENCIA E IDIOMA</Text>
                 <View style={styles.group}>
                     <View style={styles.item}>
                         <Ionicons name="color-palette-outline" size={22} color={COLORS.electricBlue} />
@@ -200,9 +205,19 @@ export default function SettingsScreen() {
                             trackColor={{ false: '#333', true: COLORS.neonGreen }}
                         />
                     </View>
+                    
+                    <View style={styles.thinLine} />
+
+                    <TouchableOpacity style={styles.item} onPress={toggleLanguage}>
+                        <Ionicons name="language-outline" size={22} color={COLORS.vibrantYellow} />
+                        <View style={{ flex: 1, marginLeft: 15 }}>
+                            <Text style={styles.itemLabel}>Idioma</Text>
+                            <Text style={styles.appearanceSub}>{language}</Text>
+                        </View>
+                        <Ionicons name="refresh-outline" size={20} color="rgba(255,255,255,0.3)" />
+                    </TouchableOpacity>
                 </View>
 
-                {/* --- BOTÓN DE GUARDAR AGREGADO AQUÍ --- */}
                 <View style={{ marginTop: 40, marginBottom: 10 }}>
                     <TouchableOpacity 
                         style={styles.saveButton} 

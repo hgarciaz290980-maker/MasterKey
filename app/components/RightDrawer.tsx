@@ -1,6 +1,6 @@
 import { DrawerContentScrollView, DrawerItem } from '@react-navigation/drawer';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 
 const COLORS = { 
@@ -32,14 +32,10 @@ export default function RightDrawerContent(props: any) {
         label="Mi Bóveda"
         labelStyle={styles.drawerLabel}
         icon={() => <Ionicons name="shield-checkmark-outline" size={22} color={COLORS.textWhite} />}
-        onPress={() => router.push('/(tabs)')}
-      />
-
-      <DrawerItem
-        label="Seguridad"
-        labelStyle={styles.drawerLabel}
-        icon={() => <Ionicons name="finger-print-outline" size={22} color={COLORS.textWhite} />}
-        onPress={() => router.push('/security-settings' as any)}
+        onPress={() => {
+          props.navigation.closeDrawer(); 
+          router.push('/vault' as any);   
+        }}
       />
 
       <DrawerItem
@@ -85,7 +81,23 @@ export default function RightDrawerContent(props: any) {
         label="Cerrar Bóveda"
         labelStyle={{ color: '#FF4444', fontWeight: 'bold' }}
         icon={() => <Ionicons name="lock-closed" size={22} color="#FF4444" />}
-        onPress={() => { /* Lógica de cierre */ }}
+        onPress={() => {
+          Alert.alert(
+            "Cerrar Bóveda",
+            "¿Estás seguro de que quieres salir? Se requerirá tu ID de acceso para volver a entrar.",
+            [
+              { text: "Cancelar", style: "cancel" },
+              { 
+                text: "Confirmar", 
+                style: "destructive", 
+                onPress: () => {
+                  props.navigation.closeDrawer();
+                  router.replace('/'); 
+                } 
+              }
+            ]
+          );
+        }}
       />
     </DrawerContentScrollView>
   );
@@ -102,7 +114,6 @@ const styles = StyleSheet.create({
   brandText: { color: COLORS.textWhite, fontSize: 24, fontWeight: '900', letterSpacing: 1 },
   sloganText: { color: COLORS.textWhite, opacity: 0.5, fontSize: 11, marginTop: 5 },
   drawerLabel: { color: COLORS.textWhite, fontSize: 14, fontWeight: '500' },
-  // LÍNEAS ELEGANTES Y MUY DELGADAS [cite: 2026-01-21]
   divider: { 
     height: 0.5, 
     backgroundColor: COLORS.textWhite, 
